@@ -1,0 +1,194 @@
+{
+  "extensionName": {
+    "message": "Meal Bot - Menu Exporter",
+    "description": "The name of the extension."
+  },
+  "extensionDescription": {
+    "message": "One-click extract Uber Eats, foodpanda, and Nidin menus into Google Sheets format",
+    "description": "The description of the extension."
+  },
+  "actionTitle": {
+    "message": "Extract Store Menu",
+    "description": "The action button tooltip."
+  },
+  "popupTitle": {
+    "message": "Meal Bot Menu Exporter",
+    "description": "Header title of popup."
+  },
+  "popupSubtitle": {
+    "message": "Supports Uber Eats / foodpanda / Nidin",
+    "description": "Header subtitle of popup."
+  },
+  "detecting": {
+    "message": "Detecting...",
+    "description": "Status text while detecting platform."
+  },
+  "unsupportedPage": {
+    "message": "Unsupported Page",
+    "description": "Badge text for unsupported pages."
+  },
+  "storeNameLabel": {
+    "message": "Store Name:",
+    "description": "Label for store name input."
+  },
+  "storeNamePlaceholder": {
+    "message": "Auto-detecting store name...",
+    "description": "Placeholder for store name input."
+  },
+  "targetDayLabel": {
+    "message": "Schedule Day (Optional):",
+    "description": "Label for target day selection."
+  },
+  "dayUnspecified": {
+    "message": "Unspecified (ALL)",
+    "description": "Unspecified day option."
+  },
+  "dayMon": {
+    "message": "Monday (週一)",
+    "description": "Monday option."
+  },
+  "dayTue": {
+    "message": "Tuesday (週二)",
+    "description": "Tuesday option."
+  },
+  "dayWed": {
+    "message": "Wednesday (週三)",
+    "description": "Wednesday option."
+  },
+  "dayThu": {
+    "message": "Thursday (週四)",
+    "description": "Thursday option."
+  },
+  "dayFri": {
+    "message": "Friday (週五)",
+    "description": "Friday option."
+  },
+  "daySat": {
+    "message": "Saturday (週六)",
+    "description": "Saturday option."
+  },
+  "daySun": {
+    "message": "Sunday (週日)",
+    "description": "Sunday option."
+  },
+  "fetchMenuBtn": {
+    "message": "🚀 Extract Menu",
+    "description": "Button to trigger menu extraction."
+  },
+  "fetchingBtn": {
+    "message": "⏳ Extracting...",
+    "description": "Button text while fetching."
+  },
+  "refetchBtn": {
+    "message": "🚀 Re-extract",
+    "description": "Button text after initial fetch."
+  },
+  "itemsUnit": {
+    "message": "items",
+    "description": "Unit label for item count."
+  },
+  "categoriesUnit": {
+    "message": "categories",
+    "description": "Unit label for category count."
+  },
+  "copyMenuTsvBtn": {
+    "message": "📋 Copy Menu TSV (7 Cols)",
+    "description": "Button to copy TSV for Menu tab."
+  },
+  "copyCustomTsvBtn": {
+    "message": "📋 Copy Custom Tab TSV (5 Cols)",
+    "description": "Button to copy TSV for custom restaurant tab."
+  },
+  "downloadTsvBtn": {
+    "message": "💾 Download TSV File",
+    "description": "Button to download TSV file."
+  },
+  "copyJsonBtn": {
+    "message": "📋 Copy JSON",
+    "description": "Button to copy JSON to clipboard."
+  },
+  "tipGuide": {
+    "message": "💡 <b>Tip:</b> Click 'Copy Menu TSV', go to Google Sheets <code>Menu</code> tab, select the first cell of a new row and press <b>Ctrl+V</b> (or Cmd+V) to paste! For custom restaurant tabs, use the 5-column copy button.",
+    "description": "Tip guiding user how to paste."
+  },
+  "previewTitle": {
+    "message": "Menu Preview (First 10 items):",
+    "description": "Title above preview table."
+  },
+  "thDay": {
+    "message": "Day",
+    "description": "Table header for day."
+  },
+  "thRestaurant": {
+    "message": "Restaurant",
+    "description": "Table header for restaurant."
+  },
+  "thCategory": {
+    "message": "Category",
+    "description": "Table header for category."
+  },
+  "thItem": {
+    "message": "Item Name",
+    "description": "Table header for item name."
+  },
+  "thPrice": {
+    "message": "Price",
+    "description": "Table header for price."
+  },
+  "thAvailable": {
+    "message": "Available",
+    "description": "Table header for available flag."
+  },
+  "thDescription": {
+    "message": "Description",
+    "description": "Table header for description."
+  },
+  "unsupportedTitle": {
+    "message": "⚠️ Unsupported Page",
+    "description": "Unsupported prompt title."
+  },
+  "unsupportedDesc": {
+    "message": "Please open a store menu page from the following platforms in Chrome before launching this extension:",
+    "description": "Unsupported prompt description."
+  },
+  "successFetch": {
+    "message": "✅ Successfully extracted <b>$COUNT$</b> items!",
+    "description": "Success message after extraction.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessMenu": {
+    "message": "📋 <b>Successfully copied $COUNT$ items (Menu format) to clipboard!</b><br>Go to Google Sheets [Menu] tab, select the first cell of a new row and press <b>Ctrl+V</b> (or Cmd+V) to paste!",
+    "description": "Success message for Menu TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessCustom": {
+    "message": "📋 <b>Successfully copied $COUNT$ items (Custom restaurant format) to clipboard!</b><br>Go to your custom restaurant tab, select the first cell of a new row and press <b>Ctrl+V</b> (or Cmd+V) to paste!",
+    "description": "Success message for Custom Restaurant TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessJson": {
+    "message": "📋 <b>Successfully copied JSON to clipboard!</b>",
+    "description": "Success message for JSON copy."
+  },
+  "errorFetch": {
+    "message": "❌ Extraction failed: $ERROR$",
+    "description": "Error message when fetch fails.",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  }
+}
