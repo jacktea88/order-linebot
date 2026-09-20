@@ -528,71 +528,186 @@ async function inTabScraper(platform, pageUrl) {
 
       const rawStoreId = match[2];
       const storeUuid = base64ToUuid(rawStoreId);
-
-      // Call same-origin internal API
-      const res = await fetch('/_p/api/getStoreV1', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeUuid: storeUuid })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Uber Eats API 回應錯誤 HTTP ${res.status}`);
+      let items = [];
+      let storeTitle = document.title.replace(/\s*\|.*$/, '').trim();
+      const h1 = document.querySelector('h1');
+      if (h1 && h1.textContent.trim()) {
+        storeTitle = h1.textContent.trim();
       }
 
-      const json = await res.json();
-      const storeData = json.data || {};
-      const storeTitle = storeData.title || document.title.replace(/\s*\|.*$/, '').trim();
+      // --- Attempt 1: Call same-origin internal API with proper CSRF token & credentials ---
+      try {
+        const res = await fetch('/_p/api/getStoreV1', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': 'x'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            storeUuid: storeUuid,
+            diningMode: 'DELIVERY'
+          })
+        });
 
-      const catalogSectionsMap = storeData.catalogSectionsMap || {};
-      const items = [];
+        if (res.ok) {
+          const json = await res.json();
+          const storeData = json.data || {};
+          if (storeData.title) storeTitle = storeData.title;
 
-      for (const catId of Object.keys(catalogSectionsMap)) {
-        const sectionList = catalogSectionsMap[catId] || [];
-        for (const sec of sectionList) {
-          const catName = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.title && sec.payload.standardItemsPayload.title.text) || '一般';
-          const itemList = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.catalogItems) || [];
+          const catalogSectionsMap = storeData.catalogSectionsMap || {};
+          for (const catId of Object.keys(catalogSectionsMap)) {
+            const sectionList = catalogSectionsMap[catId] || [];
+            for (const sec of sectionList) {
+              const catName = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.title && sec.payload.standardItemsPayload.title.text) || '一般';
+              const itemList = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.catalogItems) || [];
 
-          for (const item of itemList) {
-            const title = (item.title || '').trim();
-            if (!title) continue;
-            let price = 0;
-            if (typeof item.price === 'number') {
-              price = item.price > 1000 ? Math.round(item.price / 100) : item.price;
+              for (const item of itemList) {
+                const title = (item.title || '').trim();
+                if (!title) continue;
+                let price = 0;
+                if (typeof item.price === 'number') {
+                  price = item.price > 1000 ? Math.round(item.price / 100) : item.price;
+                }
+                const desc = (item.itemDescription || '').replace(/[\r\n\t]+/g, ' ').trim();
+
+                items.push({
+                  category: catName,
+                  itemName: title,
+                  price: price,
+                  description: desc
+                });
+              }
             }
-            const desc = (item.itemDescription || '').replace(/[\r\n\t]+/g, ' ').trim();
-
-            items.push({
-              category: catName,
-              itemName: title,
-              price: price,
-              description: desc
-            });
           }
+        } else {
+          console.warn('Uber Eats getStoreV1 returned HTTP ' + res.status + ', proceeding to script/DOM extraction...');
+        }
+      } catch (apiErr) {
+        console.warn('Uber Eats internal API fetch failed:', apiErr);
+      }
+
+      // --- Attempt 2: Extract from embedded <script> tags (Next.js / SSR hydration) ---
+      if (items.length === 0) {
+        try {
+          const scripts = document.querySelectorAll('script');
+          for (const s of scripts) {
+            const txt = s.textContent || '';
+            if (txt.includes('catalogSectionsMap') || txt.includes('standardItemsPayload')) {
+              try {
+                let json = null;
+                if (txt.trim().startsWith('{') || txt.trim().startsWith('[')) {
+                  json = JSON.parse(txt);
+                } else {
+                  const m = txt.match(/\{.*"catalogSectionsMap".*\}/s);
+                  if (m) json = JSON.parse(m[0]);
+                }
+                if (json) {
+                  const findMap = (obj) => {
+                    if (!obj || typeof obj !== 'object') return null;
+                    if (obj.catalogSectionsMap) return obj;
+                    for (const k of Object.keys(obj)) {
+                      try {
+                        const r = findMap(obj[k]);
+                        if (r) return r;
+                      } catch (e) {}
+                    }
+                    return null;
+                  };
+                  const found = findMap(json);
+                  if (found && found.catalogSectionsMap) {
+                    if (found.title) storeTitle = found.title;
+                    const map = found.catalogSectionsMap;
+                    for (const catId of Object.keys(map)) {
+                      const sectionList = map[catId] || [];
+                      for (const sec of sectionList) {
+                        const catName = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.title && sec.payload.standardItemsPayload.title.text) || '一般';
+                        const itemList = (sec.payload && sec.payload.standardItemsPayload && sec.payload.standardItemsPayload.catalogItems) || [];
+                        for (const item of itemList) {
+                          const title = (item.title || '').trim();
+                          if (!title) continue;
+                          let price = 0;
+                          if (typeof item.price === 'number') {
+                            price = item.price > 1000 ? Math.round(item.price / 100) : item.price;
+                          }
+                          const desc = (item.itemDescription || '').replace(/[\r\n\t]+/g, ' ').trim();
+                          items.push({
+                            category: catName,
+                            itemName: title,
+                            price: price,
+                            description: desc
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
+            if (items.length > 0) break;
+          }
+        } catch (scriptErr) {
+          console.warn('Script extraction failed:', scriptErr);
         }
       }
 
-      // Fallback to DOM card extraction if API returned empty
+      // --- Attempt 3: Comprehensive DOM Scraping from rendered page ---
       if (items.length === 0) {
-        const itemElements = document.querySelectorAll('li[data-testid="store-item"]');
-        itemElements.forEach(el => {
-          const nameEl = el.querySelector('span[data-testid="rich-text"]');
-          const itemName = nameEl ? nameEl.textContent.trim() : '';
-          const textContent = el.textContent || '';
-          const priceMatch = textContent.match(/\$([0-9,]+)/);
-          const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : 0;
-          if (itemName) {
-            items.push({
-              category: '精選餐點',
-              itemName: itemName,
-              price: price,
-              description: ''
+        const sections = document.querySelectorAll('section, [data-testid="store-catalog-section"], div[role="region"]');
+        if (sections.length > 0) {
+          sections.forEach(sec => {
+            const h = sec.querySelector('h2, h3, [data-testid="category-header"]');
+            const catName = h ? h.textContent.trim() : '精選餐點';
+            const itemEls = sec.querySelectorAll('li, [data-testid="store-item"], [data-testid*="menu-item"], div[role="button"]');
+            itemEls.forEach(el => {
+              const text = el.textContent || '';
+              const priceMatch = text.match(/(?:NT\$|\$)\s*([0-9,]+)/i);
+              if (priceMatch) {
+                const price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+                const nameEl = el.querySelector('h3, h4, span[data-testid="rich-text"], div[data-testid*="title"]') || el.querySelector('span, div');
+                const itemName = nameEl ? nameEl.textContent.trim() : '';
+                if (itemName && itemName.length > 1 && price > 0 && !items.some(i => i.itemName === itemName)) {
+                  let desc = '';
+                  const descEl = el.querySelector('p, span:not([data-testid="rich-text"])');
+                  if (descEl && descEl.textContent.trim() !== itemName && !descEl.textContent.includes('$')) {
+                    desc = descEl.textContent.trim().slice(0, 100);
+                  }
+                  items.push({
+                    category: catName,
+                    itemName: itemName,
+                    price: price,
+                    description: desc
+                  });
+                }
+              }
             });
-          }
-        });
+          });
+        }
+
+        // Broad DOM fallback: Scan all elements on page with price patterns
+        if (items.length === 0) {
+          const itemElements = document.querySelectorAll('li[data-testid="store-item"], [data-testid*="menu-item"], [data-testid*="store-item"]');
+          itemElements.forEach(el => {
+            const text = el.textContent || '';
+            const priceMatch = text.match(/(?:NT\$|\$)\s*([0-9,]+)/i);
+            const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : 0;
+            const nameEl = el.querySelector('span[data-testid="rich-text"], h3, h4') || el.querySelector('span');
+            const itemName = nameEl ? nameEl.textContent.trim() : '';
+            if (itemName && price > 0 && !items.some(i => i.itemName === itemName)) {
+              items.push({
+                category: '精選餐點',
+                itemName: itemName,
+                price: price,
+                description: ''
+              });
+            }
+          });
+        }
       }
 
-      if (items.length === 0) throw new Error('未能取得任何餐點品項');
+      if (items.length === 0) {
+        throw new Error('未能取得任何餐點品項，請確認店家頁面已完全載入');
+      }
 
       return {
         success: true,
@@ -610,7 +725,8 @@ async function inTabScraper(platform, pageUrl) {
       const vendorCode = match[1];
       const apiUrl = `https://tw.fd-api.com/api/v5/vendors/${vendorCode}?include=menus`;
       const res = await fetch(apiUrl, {
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error(`foodpanda API 回應錯誤 HTTP ${res.status}`);
@@ -663,7 +779,8 @@ async function inTabScraper(platform, pageUrl) {
 
       const storeId = match[1];
       const infoRes = await fetch(`/store/${storeId}/info`, {
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
       });
       let storeName = '你訂店家';
       if (infoRes.ok) {
@@ -676,7 +793,8 @@ async function inTabScraper(platform, pageUrl) {
       }
 
       const menuRes = await fetch(`/store/${storeId}/onShelfMenu`, {
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
       });
       if (!menuRes.ok) throw new Error(`你訂 API 回應 HTTP ${menuRes.status}`);
 
