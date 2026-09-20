@@ -17,6 +17,11 @@
 - 🍔 **Uber Eats、foodpanda 與你訂 (Nidin) 店家菜單自動抓取與匯入**：
   - 輸入 Uber Eats、foodpanda 或你訂 (Nidin) 店家網址（或純門市 ID），自動爬取分類、菜名、價格與描述，一鍵匯入至指定星期菜單！
   - 支援 Google 試算表選單操作（「🍔 從 Uber Eats 網址匯入菜單」、「🐼 從 foodpanda 網址匯入菜單」、「🥤 從你訂 (Nidin) 網址匯入菜單」）與 LINE 群組聊天室指令（`匯入菜單 [週X] [網址]`、`foodpanda匯入`、`熊貓匯入`、`nidin匯入`、`你訂匯入`）三種外送/訂餐平台。
+- 🧩 **Chrome 瀏覽器外掛一鍵擷取與試算表匯出工具 (`extensions/chrome-menu-exporter`)**：
+  - 徹底克服 Google Apps Script 雲端機房 IP 被 Cloudflare WAF / Bot 挑戰（如 Uber Eats 回應 HTTP 403 Challenge）的限制。
+  - 直接在管理員的 Chrome 瀏覽器中一鍵解析 Uber Eats、foodpanda 或你訂店家完整菜單。
+  - 支援 **7 欄【Menu 格式】** 與 **5 欄【自訂餐廳分頁格式】** 一鍵複製 TSV 到剪貼簿，切換至 Google 試算表直接 `Ctrl+V` (Mac: `Cmd+V`) 即可 1 秒貼上！
+  - 內建多語系 i18n（繁體中文 `zh_TW`、英文 `en`、日文 `ja`）與 UTF-8 BOM 檔案下載。詳情請參閱 [extensions/chrome-menu-exporter/README.md](extensions/chrome-menu-exporter/README.md)。
 - 📑 **從自訂餐廳工作表一鍵匯入菜單**：
   - 在試算表中建立店家名稱的專屬工作表（例如：`老王便當`），點選試算表選單「📑 從自訂餐廳匯入菜單」，一鍵同步填入 `WeeklySchedule` 與 `Menu`！
   - 支援嚴格排除系統專用工作表（`Config`、`Logs`、`WeeklySchedule`、`Menu`、`Orders`、`Children`、`Summary`）與防呆錯誤提示（目前僅由試算表管理者操作，避免群組成員誤觸）。
@@ -144,6 +149,15 @@ order-linebot/
 │   ├── deployment_guide.md        # 完整圖文部署手冊（LINE 後台、GAS 雲端環境變數、常見錯誤排查）
 │   └── images/
 │       └── help_menu.jpg          # 幫助選單互動卡片範例圖
+├── extensions/
+│   └── chrome-menu-exporter/      # Chrome 菜單擷取擴充功能 (克服 Cloudflare 阻擋、支援多語系 i18n 與一鍵 TSV 複製)
+│       ├── manifest.json          # Chrome Manifest V3 設定檔
+│       ├── _locales/              # 國際化多語系辭典 (zh_TW, en, ja)
+│       ├── popup.html             # 彈出視窗介面 (含語系選單、欄位設定與即時預覽)
+│       ├── popup.css              # 樣式表
+│       ├── popup.js               # 擷取與格式轉換邏輯
+│       ├── icons/                 # 擴充功能圖示
+│       └── README.md              # 擴充功能安裝與使用說明手冊
 ├── src/
 │   ├── Config.js                  # 系統環境變數、常數與週排程定義
 │   ├── I18n.js                    # 多國語言 (i18n) 引擎、7 國語系辭典與指令別名解析
@@ -204,6 +218,9 @@ npm run bundle
 - **週六/週末點餐與預約下週餐點？支援週末（週六、週日）開單點餐嗎？**
   - **週六預約下週餐點**：平日模式下（預設 `ALLOW_WEEKEND_ORDERING: 'false'`），只要開單人開放點餐 (`IS_ORDERING_OPEN: 'true'`)，成員在週六即可自由預訂下週一至週五餐點（例如輸入「`+1 招牌排骨飯`」預設預約下週一，或「`週二+1 酥炸雞腿飯`」預約下週二）。下週平日梯次在週六絕不被誤判為已過期！
   - **支援週末訂餐 (`ALLOW_WEEKEND_ORDERING`)**：若週末亦有活動、自習或活動便當需求，只需在 `Config` 工作表中將 `ALLOW_WEEKEND_ORDERING` 設為 `true`，系統即自動擴展為 7 天週期，全面支援週六與週日排程、菜單、點餐截單、結單與統計匯總。詳情請參閱 [docs/deployment_guide.md#q15週末點餐與週六預點下週餐點功能說明-allow_weekend_ordering](docs/deployment_guide.md#q15週末點餐與週六預點下週餐點功能說明-allow_weekend_ordering)。
+- **Uber Eats 或外送平台抓取遇到 Cloudflare 403 阻擋時該如何處理？（Chrome 擴充功能匯入方案）**
+  - Uber Eats 等外送平台針對雲端機房 IP（包含 Google Apps Script `UrlFetchApp` 請求）部署了 Cloudflare Enterprise Bot 防護，會觸發 HTTP 403 Turnstile Challenge 阻擋。
+  - 本專案特別提供隨附的 **Chrome 瀏覽器擴充套件**（位於 [`extensions/chrome-menu-exporter/`](extensions/chrome-menu-exporter/README.md)），利用管理員真實瀏覽器工作階段（自帶 Cookie 與真人憑證），在店家頁面一鍵擷取菜單並自動轉換為試算表格式，點擊「複製 TSV」後至 Google 試算表 `Menu` 頁籤按下 `Ctrl+V` (Mac: `Cmd+V`) 即可 1 秒完成貼上！詳細教學請參閱 [docs/deployment_guide.md#q17-uber-eats-或外送平台遭-cloudflare-403-阻擋時如何使用-chrome-擴充功能匯入菜單](docs/deployment_guide.md#q17-uber-eats-或外送平台遭-cloudflare-403-阻擋時如何使用-chrome-擴充功能匯入菜單)。
 
 ---
 
