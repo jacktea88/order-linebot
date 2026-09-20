@@ -80,3 +80,21 @@ extensions/chrome-menu-exporter/
 │   └── icon128.png
 └── README.md                  # 本說明文件
 ```
+
+---
+
+## ❓ 常見問題與除錯 (FAQ & Troubleshooting)
+
+### Q1：為什麼在 Uber Eats 店家頁面點擊「擷取菜單」會出現 HTTP 403 錯誤？
+- **原因**：Uber Eats 內部的 `/_p/api/*` 介面嚴格檢查 CSRF 標頭（`x-csrf-token: x`）與 Session 認證。
+- **三重容錯機制 (3-Tier Fallback)**：
+  - **第 1 層（同源 API）**：自動帶上 `x-csrf-token: x`、`credentials: 'include'` 與 `diningMode: 'DELIVERY'` 發起請求。
+  - **第 2 層（頁面 Script 解析）**：若 API 受到阻擋，自動掃描網頁 `<script>` 標籤中 Next.js/SSR 注入的 `catalogSectionsMap` 結構。
+  - **第 3 層（DOM 畫面智能萃取）**：若前兩者未取得，直接對網頁畫面上已經渲染顯示的分類標題、餐點名稱與價格卡片進行萃取。
+- **解決方式**：若您先前已載入過舊版外掛，Chrome 會快取舊程式碼。請至 `chrome://extensions/` 點擊卡片右下角的 **🔄 重新載入（Reload）** 按鈕，再回店家頁面重新點擊擷取即可！
+
+### Q2：更新外掛檔案後，如何讓 Chrome 即時套用最新版本？
+- 前往 `chrome://extensions/`。
+- 找到「便當點餐小幫手 - 菜單擷取工具」卡片。
+- 點擊卡片右下角的 **🔄 重新載入（Reload）** 圖示，無須重新載入整個資料夾即可生效。
+
