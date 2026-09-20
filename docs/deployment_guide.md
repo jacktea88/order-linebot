@@ -181,6 +181,8 @@
    - 彈出視窗依序輸入指定星期（例如：`週一`、`週四` 或 `週五`）與店家網址（例如：`https://www.ubereats.com/...`、`https://www.foodpanda.com.tw/restaurant/m6hr/...` 或 `https://order.nidin.shop/menu/29638`）。
    - 系統自動解析並抓取所有菜色分類與價格，自動填入 `Menu` 頁籤，並同步更新排程店家！
    - 另亦提供 **「🔍 診斷測試：你訂 (Nidin) 菜單抓取」**、**「🔍 診斷測試：foodpanda 菜單抓取」** 與 **「🔍 診斷測試：Uber Eats 菜單抓取」** 可供快速檢驗連線與解析狀態。
+   - 💡 **Uber Eats Cloudflare WAF / 403 阻擋之完整應對方案**：
+     Uber Eats 採用 Cloudflare Enterprise Bot Protection 防護。若 Google Apps Script 的雲端 IP 遭遇 HTTP 403 阻擋，推薦使用本專案隨附的 **Chrome 擴充套件**（[`extensions/chrome-menu-exporter/`](../extensions/chrome-menu-exporter/README.md)），利用真實瀏覽器環境一鍵解析並複製為 7 欄 Menu 格式或 5 欄自訂餐廳格式（詳見 [常見問題 Q17](#q17-uber-eats-或外送平台遭-cloudflare-403-阻擋時如何使用-chrome-擴充功能匯入菜單)）。
 3. **從自訂餐廳工作表一鍵匯入**：
    - 在試算表中新增一個工作表，名稱取為餐廳名稱（例如：`老王便當`）。
    - 於該工作表填入菜單欄位（格式比照 `Menu`：`RestaurantName, Category, ItemName, Price, IsAvailable, Description`）。
@@ -588,3 +590,28 @@ Google Apps Script 執行於 Google 雲端無伺服器環境中，為避免時�
   - 在點餐解析引擎（`parseOrderText`）與品項模糊比對（`matchMenuItem`）中全面設置過濾防線：任何分頁關鍵字均**絕不會**被誤判為餐點名稱或訂購數量（回傳為空陣列 `[]`）。
   - 訂單資料庫（`Orders` 工作表）永遠不會寫入「第幾頁」等垃圾紀錄，確保帳目與統計 100% 正確。
 
+---
+
+### Q17：Uber Eats 或外送平台遭 Cloudflare 403 阻擋時如何使用 Chrome 擴充功能匯入菜單？
+
+#### 1. 問題成因分析
+- **Google Apps Script (GAS) 網路限制**：GAS 的 `UrlFetchApp` 具備固定的 User-Agent（包含 `Google-Apps-Script; beanserver`），且所有請求均發自 Google Cloud (GCP) 機房 IP。
+- **Cloudflare Enterprise Bot Management**：Uber Eats 等外送平台對機房 IP 與自動化爬蟲部署了嚴格的 Cloudflare WAF 防護，會觸發 `cf-mitigated: challenge`（HTTP 403 阻擋，要求通過 Turnstile 人機驗證），導致 GAS 在雲端無法直接讀取菜單。
+
+#### 2. 官方解決方案：Chrome 菜單擷取擴充功能 (`extensions/chrome-menu-exporter`)
+本專案內建專屬 Chrome 擴充套件，利用真實使用者瀏覽器環境通過人機驗證與具備完整 Session Cookie 的優勢，一鍵解析並複製為 Google 試算表格式：
+
+1. **載入擴充套件（免上架，30 秒完成）**：
+   - 在 Chrome 網址列輸入 `chrome://extensions/`。
+   - 開啟右上角 **「開發人員模式 (Developer mode)」**。
+   - 點選左上角 **「載入未封裝項目 (Load unpacked)」**，選取專案目錄中的 `extensions/chrome-menu-exporter` 資料夾。
+2. **一鍵擷取與複製**：
+   - 在 Chrome 中開啟目標 Uber Eats、foodpanda 或你訂店家菜單頁面。
+   - 點擊瀏覽器右上角 🍱 圖示，選擇排程星期（如：`週一`）或自訂店家名稱。
+   - 點擊 **「🚀 擷取菜單」**，1~2 秒內即可完成解析。
+   - 點擊 **「📋 複製 Menu 格式 (7欄)」**（或自訂餐廳 5 欄格式）。
+3. **貼入試算表**：
+   - 開啟 Google 試算表 `Menu` 工作表，點選最下方空白列第一個儲存格直接按 **`Ctrl + V`**（Mac: **`Cmd + V`**）貼上，即刻完成菜單匯入！
+   - 至 `WeeklySchedule` 確認當日店家名稱與 `Menu` 一致，群組成員即可開始點餐。
+4. **多語系 (i18n) 支援**：
+   - 外掛彈出介面內建多語系切換器，支援 **繁體中文 (`zh_TW`)**、**English (`en`)** 與 **日本語 (`ja`)**，自動適配瀏覽器語言並記憶偏好。
