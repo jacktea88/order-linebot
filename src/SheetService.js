@@ -575,14 +575,33 @@ function getScheduleByDay(dayOfWeek) {
 }
 
 /**
+ * Resolve default cutoff time from Config sheet.
+ * Priority:
+ * 1. CUTOFF_TIME from Config sheet (if present and non-empty and not '無截止時間')
+ * 2. '無截止時間'
+ * @returns {string}
+ */
+function getDefaultCutoffTime() {
+  var configCutoff = getConfigValue('CUTOFF_TIME', '');
+  if (configCutoff && String(configCutoff).trim() !== '') {
+    return String(configCutoff).trim();
+  }
+  return '無截止時間';
+}
+
+/**
  * Set Weekly Schedule for a day
  */
 function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl, notes, isActive) {
+  var effectiveCutoff = (cutoffTime !== undefined && cutoffTime !== null && String(cutoffTime).trim() !== '')
+    ? String(cutoffTime).trim()
+    : getDefaultCutoffTime();
+
   if (!isGasRuntime()) {
     for (var i = 0; i < _mockStore.WeeklySchedule.length; i++) {
       if (_mockStore.WeeklySchedule[i].dayOfWeek === dayOfWeek) {
         if (restaurantName) _mockStore.WeeklySchedule[i].restaurantName = restaurantName;
-        if (cutoffTime) _mockStore.WeeklySchedule[i].cutoffTime = cutoffTime;
+        if (cutoffTime !== undefined && cutoffTime !== null) _mockStore.WeeklySchedule[i].cutoffTime = effectiveCutoff;
         if (uberEatsUrl !== undefined) _mockStore.WeeklySchedule[i].uberEatsUrl = uberEatsUrl;
         if (notes !== undefined) _mockStore.WeeklySchedule[i].notes = notes;
         if (isActive !== undefined) _mockStore.WeeklySchedule[i].isActive = isActive ? 'TRUE' : 'FALSE';
@@ -592,7 +611,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
     _mockStore.WeeklySchedule.push({
       dayOfWeek: dayOfWeek,
       restaurantName: restaurantName || '',
-      cutoffTime: cutoffTime || '10:30',
+      cutoffTime: effectiveCutoff,
       uberEatsUrl: uberEatsUrl || '',
       notes: notes || '',
       isActive: isActive ? 'TRUE' : 'FALSE'
@@ -609,7 +628,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
   for (var j = 1; j < rows.length; j++) {
     if (String(rows[j][0]) === dayOfWeek) {
       if (restaurantName) sheet.getRange(j + 1, 2).setValue(restaurantName);
-      if (cutoffTime) sheet.getRange(j + 1, 3).setValue(cutoffTime);
+      if (cutoffTime !== undefined && cutoffTime !== null) sheet.getRange(j + 1, 3).setValue(effectiveCutoff);
       if (uberEatsUrl !== undefined) sheet.getRange(j + 1, 4).setValue(uberEatsUrl);
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
       if (isActive !== undefined) sheet.getRange(j + 1, 6).setValue(isActive ? 'TRUE' : 'FALSE');
@@ -617,7 +636,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
     }
   }
   // Append new day
-  sheet.appendRow([dayOfWeek, restaurantName || '', cutoffTime || '10:30', uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
+  sheet.appendRow([dayOfWeek, restaurantName || '', effectiveCutoff, uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
   return true;
 }
 
@@ -970,7 +989,8 @@ function importCustomRestaurantMenu(dayOfWeek, restaurantName) {
   }
 
   // 1. Update WeeklySchedule
-  setWeeklyScheduleDay(normDay, rName, '10:30', '', '從自訂餐廳匯入', true);
+  var defaultCutoff = getDefaultCutoffTime();
+  setWeeklyScheduleDay(normDay, rName, defaultCutoff, '', '從自訂餐廳匯入', true);
 
   // 2. Update Menu
   saveMenuItems(normDay, rName, items);
@@ -2476,6 +2496,7 @@ function setUserLocalePreference(userId, locale, userName, userNickname) {
       getDaysOfWeek: getDaysOfWeek,
       getWeeklySchedule: getWeeklySchedule,
       getScheduleByDay: getScheduleByDay,
+      getDefaultCutoffTime: getDefaultCutoffTime,
       setWeeklyScheduleDay: setWeeklyScheduleDay,
       getMenuItems: getMenuItems,
       saveMenuItems: saveMenuItems,
