@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-18T13:09:16.414Z
+ * Automatically generated on: 2026-09-21T15:07:26.738Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -350,6 +350,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': '週一至週五每日店家 · 支援一梯次預訂',
     'schedule.no_restaurant': '尚未指定店家',
     'schedule.cutoff_prefix': '⏰ 截止 ',
+    'schedule.no_cutoff': '無截止時間',
     'schedule.btn_menu': '看菜單',
     'schedule.footer': '💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂',
     'schedule.alt_text': '📅 本週訂餐排程表 (週一至週五)',
@@ -604,6 +605,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': 'Mon-Fri Daily Restaurants · Pre-orders supported',
     'schedule.no_restaurant': 'Restaurant TBD',
     'schedule.cutoff_prefix': '⏰ Cutoff ',
+    'schedule.no_cutoff': 'No cutoff time',
     'schedule.btn_menu': 'Menu',
     'schedule.footer': '💡 Type "[Day]+1 [item]" or tap "Menu" to pre-order',
     'schedule.alt_text': '📅 Weekly Schedule (Mon-Fri)',
@@ -858,6 +860,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': '月〜金の日替わり店舗 · 事前予約対応',
     'schedule.no_restaurant': '店舗未定',
     'schedule.cutoff_prefix': '⏰ 締切 ',
+    'schedule.no_cutoff': '締切なし',
     'schedule.btn_menu': 'メニュー',
     'schedule.footer': '💡「月曜+1 [メニュー]」と入力するか「メニュー」をタップして予約',
     'schedule.alt_text': '📅 週間スケジュール (月〜金)',
@@ -1112,6 +1115,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': '월~금 일일 식당 · 사전 예약 지원',
     'schedule.no_restaurant': '식당 미정',
     'schedule.cutoff_prefix': '⏰ 마감 ',
+    'schedule.no_cutoff': '마감 시간 없음',
     'schedule.btn_menu': '메뉴',
     'schedule.footer': "💡 '[요일]+1 [메뉴]'를 입력하거나 '메뉴'를 눌러 주문하세요",
     'schedule.alt_text': '📅 주간 일정표 (월~금)',
@@ -1366,6 +1370,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': 'ร้านอาหารจันทร์-ศุกร์ · รองรับการสั่งล่วงหน้า',
     'schedule.no_restaurant': 'ยังไม่ได้ระบุร้าน',
     'schedule.cutoff_prefix': '⏰ ปิดรับ ',
+    'schedule.no_cutoff': 'ไม่มีเวลาปิดรับ',
     'schedule.btn_menu': 'ดูเมนู',
     'schedule.footer': '💡 พิมพ์ "[วัน]+1 [ชื่ออาหาร]" หรือแตะ "ดูเมนู" เพื่อสั่งล่วงหน้า',
     'schedule.alt_text': '📅 ตารางสัปดาห์นี้ (จันทร์-ศุกร์)',
@@ -1620,6 +1625,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': 'Restoran Senin-Jumat · Mendukung pesanan lebih awal',
     'schedule.no_restaurant': 'Restoran Belum Ditentukan',
     'schedule.cutoff_prefix': '⏰ Batas ',
+    'schedule.no_cutoff': 'Tidak ada batas waktu',
     'schedule.btn_menu': 'Menu',
     'schedule.footer': '💡 Ketik "[Hari]+1 [menu]" atau ketuk "Menu" untuk pesan',
     'schedule.alt_text': '📅 Jadwal Mingguan (Senin-Jumat)',
@@ -1873,6 +1879,7 @@ var I18N_MESSAGES = {
     'schedule.subtitle': 'Quán ăn Thứ Hai đến Thứ Sáu · Hỗ trợ đặt trước',
     'schedule.no_restaurant': 'Chưa chỉ định quán ăn',
     'schedule.cutoff_prefix': '⏰ Hạn ',
+    'schedule.no_cutoff': 'Không có giờ chốt',
     'schedule.btn_menu': 'Thực đơn',
     'schedule.footer': '💡 Nhập "[Thứ]+1 [món]" hoặc nhấn "Thực đơn" để đặt',
     'schedule.alt_text': '📅 Lịch Tuần này (Thứ Hai đến Thứ Sáu)',
@@ -3449,14 +3456,33 @@ function getScheduleByDay(dayOfWeek) {
 }
 
 /**
+ * Resolve default cutoff time from Config sheet.
+ * Priority:
+ * 1. CUTOFF_TIME from Config sheet (if present and non-empty and not '無截止時間')
+ * 2. '無截止時間'
+ * @returns {string}
+ */
+function getDefaultCutoffTime() {
+  var configCutoff = getConfigValue('CUTOFF_TIME', '');
+  if (configCutoff && String(configCutoff).trim() !== '') {
+    return String(configCutoff).trim();
+  }
+  return '無截止時間';
+}
+
+/**
  * Set Weekly Schedule for a day
  */
 function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl, notes, isActive) {
+  var effectiveCutoff = (cutoffTime !== undefined && cutoffTime !== null && String(cutoffTime).trim() !== '')
+    ? String(cutoffTime).trim()
+    : getDefaultCutoffTime();
+
   if (!isGasRuntime()) {
     for (var i = 0; i < _mockStore.WeeklySchedule.length; i++) {
       if (_mockStore.WeeklySchedule[i].dayOfWeek === dayOfWeek) {
         if (restaurantName) _mockStore.WeeklySchedule[i].restaurantName = restaurantName;
-        if (cutoffTime) _mockStore.WeeklySchedule[i].cutoffTime = cutoffTime;
+        if (cutoffTime !== undefined && cutoffTime !== null) _mockStore.WeeklySchedule[i].cutoffTime = effectiveCutoff;
         if (uberEatsUrl !== undefined) _mockStore.WeeklySchedule[i].uberEatsUrl = uberEatsUrl;
         if (notes !== undefined) _mockStore.WeeklySchedule[i].notes = notes;
         if (isActive !== undefined) _mockStore.WeeklySchedule[i].isActive = isActive ? 'TRUE' : 'FALSE';
@@ -3466,7 +3492,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
     _mockStore.WeeklySchedule.push({
       dayOfWeek: dayOfWeek,
       restaurantName: restaurantName || '',
-      cutoffTime: cutoffTime || '10:30',
+      cutoffTime: effectiveCutoff,
       uberEatsUrl: uberEatsUrl || '',
       notes: notes || '',
       isActive: isActive ? 'TRUE' : 'FALSE'
@@ -3483,7 +3509,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
   for (var j = 1; j < rows.length; j++) {
     if (String(rows[j][0]) === dayOfWeek) {
       if (restaurantName) sheet.getRange(j + 1, 2).setValue(restaurantName);
-      if (cutoffTime) sheet.getRange(j + 1, 3).setValue(cutoffTime);
+      if (cutoffTime !== undefined && cutoffTime !== null) sheet.getRange(j + 1, 3).setValue(effectiveCutoff);
       if (uberEatsUrl !== undefined) sheet.getRange(j + 1, 4).setValue(uberEatsUrl);
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
       if (isActive !== undefined) sheet.getRange(j + 1, 6).setValue(isActive ? 'TRUE' : 'FALSE');
@@ -3491,7 +3517,7 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
     }
   }
   // Append new day
-  sheet.appendRow([dayOfWeek, restaurantName || '', cutoffTime || '10:30', uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
+  sheet.appendRow([dayOfWeek, restaurantName || '', effectiveCutoff, uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
   return true;
 }
 
@@ -3844,7 +3870,8 @@ function importCustomRestaurantMenu(dayOfWeek, restaurantName) {
   }
 
   // 1. Update WeeklySchedule
-  setWeeklyScheduleDay(normDay, rName, '10:30', '', '從自訂餐廳匯入', true);
+  var defaultCutoff = getDefaultCutoffTime();
+  setWeeklyScheduleDay(normDay, rName, defaultCutoff, '', '從自訂餐廳匯入', true);
 
   // 2. Update Menu
   saveMenuItems(normDay, rName, items);
@@ -5350,6 +5377,7 @@ function setUserLocalePreference(userId, locale, userName, userNickname) {
       getDaysOfWeek: getDaysOfWeek,
       getWeeklySchedule: getWeeklySchedule,
       getScheduleByDay: getScheduleByDay,
+      getDefaultCutoffTime: getDefaultCutoffTime,
       setWeeklyScheduleDay: setWeeklyScheduleDay,
       getMenuItems: getMenuItems,
       saveMenuItems: saveMenuItems,
@@ -7101,6 +7129,9 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   var dayBadge = displayDay ? '【' + displayDay + '】' : '';
   var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
   var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
+  var cutoffVal = (cutoffTime && String(cutoffTime).trim() !== '' && String(cutoffTime).trim() !== '無截止時間' && String(cutoffTime).trim() !== '--')
+    ? String(cutoffTime).trim()
+    : _translateHelper('schedule.no_cutoff', {}, loc);
 
   /* ---- header ---- */
   var headerTexts = [
@@ -7110,7 +7141,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + (cutoffTime || '--'), {
+    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + cutoffVal, {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -8473,6 +8504,9 @@ function createWeeklyScheduleFlex(schedule, locale) {
   for (var i = 0; i < days.length; i++) {
     var s = days[i];
     var displayDay = _displayDayHelper(s.dayOfWeek, loc);
+    var cutoffVal = (s.cutoffTime && String(s.cutoffTime).trim() !== '' && String(s.cutoffTime).trim() !== '無截止時間' && String(s.cutoffTime).trim() !== '--')
+      ? String(s.cutoffTime).trim()
+      : _translateHelper('schedule.no_cutoff', {}, loc);
     rows.push(_flexBox([
       _flexBox([
         _flexText(displayDay, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
@@ -8484,7 +8518,7 @@ function createWeeklyScheduleFlex(schedule, locale) {
       }),
       _flexBox([
         _flexText(s.restaurantName || _translateHelper('schedule.no_restaurant', {}, loc), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + cutoffVal + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
       ], { layout: 'vertical', margin: 'md', flex: 1 }),
       {
         type: 'button',
@@ -9300,10 +9334,15 @@ function isTodayCutoffPassed(day, refDate) {
   // 2. Check cutoff time against current Taiwan time
   var cutoffStr = '';
   var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(actualTodayStr) : null;
-  if (daySched && daySched.cutoffTime) {
-    cutoffStr = daySched.cutoffTime;
+  var schedCutoff = daySched ? String(daySched.cutoffTime || '').trim() : '';
+
+  if (schedCutoff && schedCutoff !== '無截止時間' && schedCutoff !== '--') {
+    cutoffStr = schedCutoff;
   } else {
-    cutoffStr = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
+    var configCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '');
+    if (configCutoff && String(configCutoff).trim() !== '' && String(configCutoff).trim() !== '無截止時間') {
+      cutoffStr = String(configCutoff).trim();
+    }
   }
 
   if (!cutoffStr) return false;
@@ -9937,7 +9976,7 @@ function handleTextMessage(event) {
     var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
-    var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
+    var cutoff = (daySchedule && daySchedule.cutoffTime) ? daySchedule.cutoffTime : (SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間');
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
     var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
@@ -9965,8 +10004,9 @@ function handleTextMessage(event) {
       var nidinResult = NidinModule.importNidinToMenu(importUrl, importDay, customName);
 
       var handleNidinSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 你訂 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 你訂 匯入');
         var msg = '✅ 已成功從你訂 (Nidin) 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -9982,8 +10022,9 @@ function handleTextMessage(event) {
       var fpResult = FoodpandaModule.importFoodpandaToMenu(importUrl, importDay, storeName);
 
       var handleFpSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 foodpanda 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 foodpanda 匯入');
         var msg = '✅ 已成功從 foodpanda 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -9999,8 +10040,9 @@ function handleTextMessage(event) {
       var importPromise = UberEatsModule.importUberEatsToMenu(importUrl, importDay, storeName);
 
       var handleUberSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 Uber Eats 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 Uber Eats 匯入');
         var msg = '✅ 已成功從 Uber Eats 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -10074,7 +10116,7 @@ function handleTextMessage(event) {
     var mMatch = menuPageMatch || standalonePageMatch;
     var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4] || mMatch[5]) || 1) : 1;
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-    var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
+    var curCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : SheetModule.getConfigValue('CUTOFF_TIME', '無截止時間');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
     var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
@@ -11347,8 +11389,9 @@ function showUberEatsImportDialog() {
           ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
           return;
         }
+        var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
         saveMenuItems(dayOfWeek, storeName, items);
-        setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+        setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 Uber Eats 匯入');
         ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
       });
     } else {
@@ -11357,8 +11400,9 @@ function showUberEatsImportDialog() {
         ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 Uber Eats 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
   } catch (err) {
@@ -11408,8 +11452,9 @@ function showFoodpandaImportDialog() {
         ui.alert('⚠️ 未能從 foodpanda 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 foodpanda 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 foodpanda 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
 
@@ -11474,8 +11519,9 @@ function showNidinImportDialog() {
         ui.alert('⚠️ 未能從你訂取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 你訂 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 你訂 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
 
