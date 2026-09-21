@@ -106,7 +106,7 @@
 | `PAYMENT_LINEPAY_QR_URL` | *(留空)* | **LINE Pay 收款碼/條碼圖片網址**：支援 Google 雲端硬碟分享連結或直接圖片網址。 |
 | `IS_ORDERING_OPEN` | `false` | 今日是否開放即時點餐（`true` / `false`）。管理員亦可於群組發送「開單」或「結單」自動切換。 |
 | `RESTAURANT_NAME` | `老王便當` | 今日配合店家名稱。 |
-| `CUTOFF_TIME` | `11:00` | 今日點餐截止時間。 |
+| `CUTOFF_TIME` | `11:00` | **點餐截止時間（預設值與 Fallback 基準）**：<br>• 當寫入或新增排程未提供截止時間時，預設優先使用此處設定值；若此欄位留空或未設定，則自動設為「無截止時間」。<br>• 從外送平台（Uber Eats / foodpanda / 你訂）或自訂餐廳匯入時，亦優先使用此處設定值，若無則設為「無截止時間」。<br>• 若 `WeeklySchedule` 該天有排程但未填寫截止時間（留空或為「無截止時間」），點餐截單判定會退回使用此欄位設定；若此處亦留空，則不阻擋點餐（不限制截止時間）。 |
 | `SOURCE_CODE_URL` | `https://tinyurl.com/4c92wtee` | **開源原始碼公開網址 (AGPL-3.0 合規)**：<br>• 預設指向官方原始碼儲存庫。<br>• **重要須知**：根據 AGPL-3.0 規定，若您**有修改任何程式碼並上線運行提供他人使用**，您**必須將修改後的完整程式碼公開至公開 Git 儲存庫 (public git repo)**，並將此欄位修改為**您自己的公開 Git 儲存庫網址**。此網址會即時呈現在 LINE 「幫助」卡片底部的服務授權連結中。 |
 | `ALLOW_SWITCH_ORGANIZER` | `true` | **更換開單人權限鎖定**：<br>• `true`（預設）：允許群組任意成員透過發送「開單」指令更換開單人，自動更新 `ORGANIZER_ID`。<br>• `false`（鎖定開單人）：僅限現任開單人 (`ORGANIZER_ID`) 才能重新開單或變更開單店家；其餘成員發送「開單」將被系統攔截並提示警告，防止開單人身份被群組成員無意或惡意覆寫。 |
 | `USER_IDENTIFIER_MODE` | `HASHED_ID` | **使用者識別與個資保護模式**：<br>• `HASHED_ID`（預設/推薦）：採用單向加鹽 HMAC-SHA256 雜湊去識別化（產生如 `usr_8f9c21b4a7d3e5f0`），Google 試算表中絕不留存真實 LINE User ID，無法被逆向解碼反查個資，同時保證防偽冒與無碰撞衝突。<br>• `USER_ID`：傳統模式，儲存原始 LINE User ID（如 `U12345...`）。<br>• `NICKNAME`：純暱稱模式，以成員顯示名稱/暱稱為索引，試算表中完全零技術 User ID 紀錄。 |
@@ -176,6 +176,11 @@
 1. **編輯每天店家與菜單**：
    - 管理員可直接在 `WeeklySchedule` 工作表修改週一到週五的配合店家名稱與截止時間，機器人即時自動讀取生效！
    - 可在 `Menu` 工作表直接編輯、新增或刪除各店家的菜色與金額。
+   - 💡 **截止時間 (CutoffTime) 規則與 Fallback 機制**：
+     1. **寫入 / 新增排程 Fallback**：若未指定截止時間，預設使用 `Config` 工作表已設定的 `CUTOFF_TIME`；若 `Config` 亦未設定則自動填入「無截止時間」。
+     2. **外送平台與自訂餐廳匯入 Fallback**：從 Uber Eats / foodpanda / 你訂 (Nidin) 或自訂餐廳匯入時，預設使用 `Config` 的 `CUTOFF_TIME`；若無則填入「無截止時間」。
+     3. **卡片顯示 Fallback**：若排程或菜單未設定截止時間（留空或為「無截止時間」），LINE Flex 卡片（本週排程與菜單）依使用者語言顯示「無截止時間」（支援繁中、英、日、韓、泰、印尼、越 7 國語言）。
+     4. **點餐截單判定**：若當天有排程但未設定截止時間，系統退回使用 `Config` 的 `CUTOFF_TIME`；若 `Config` 亦無截止時間，系統將**不阻擋點餐**。
 2. **從 Uber Eats / foodpanda / 你訂 (Nidin) 網址一鍵匯入**：
    - 點選選單 **「🍔 從 Uber Eats 網址匯入菜單」**、**「🐼 從 foodpanda 網址匯入菜單」** 或 **「🥤 從你訂 (Nidin) 網址匯入菜單」**。
    - 彈出視窗依序輸入指定星期（例如：`週一`、`週四` 或 `週五`）與店家網址（例如：`https://www.ubereats.com/...`、`https://www.foodpanda.com.tw/restaurant/m6hr/...` 或 `https://order.nidin.shop/menu/29638`）。
