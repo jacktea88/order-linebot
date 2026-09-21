@@ -293,6 +293,9 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   var dayBadge = displayDay ? '【' + displayDay + '】' : '';
   var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
   var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
+  var cutoffVal = (cutoffTime && String(cutoffTime).trim() !== '' && String(cutoffTime).trim() !== '無截止時間' && String(cutoffTime).trim() !== '--')
+    ? String(cutoffTime).trim()
+    : _translateHelper('schedule.no_cutoff', {}, loc);
 
   /* ---- header ---- */
   var headerTexts = [
@@ -302,7 +305,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + (cutoffTime || '--'), {
+    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + cutoffVal, {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -1665,6 +1668,9 @@ function createWeeklyScheduleFlex(schedule, locale) {
   for (var i = 0; i < days.length; i++) {
     var s = days[i];
     var displayDay = _displayDayHelper(s.dayOfWeek, loc);
+    var cutoffVal = (s.cutoffTime && String(s.cutoffTime).trim() !== '' && String(s.cutoffTime).trim() !== '無截止時間' && String(s.cutoffTime).trim() !== '--')
+      ? String(s.cutoffTime).trim()
+      : _translateHelper('schedule.no_cutoff', {}, loc);
     rows.push(_flexBox([
       _flexBox([
         _flexText(displayDay, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
@@ -1676,7 +1682,7 @@ function createWeeklyScheduleFlex(schedule, locale) {
       }),
       _flexBox([
         _flexText(s.restaurantName || _translateHelper('schedule.no_restaurant', {}, loc), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + cutoffVal + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
       ], { layout: 'vertical', margin: 'md', flex: 1 }),
       {
         type: 'button',
