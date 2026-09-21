@@ -299,10 +299,15 @@ function isTodayCutoffPassed(day, refDate) {
   // 2. Check cutoff time against current Taiwan time
   var cutoffStr = '';
   var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(actualTodayStr) : null;
-  if (daySched && daySched.cutoffTime) {
-    cutoffStr = daySched.cutoffTime;
+  var schedCutoff = daySched ? String(daySched.cutoffTime || '').trim() : '';
+
+  if (schedCutoff && schedCutoff !== '無截止時間' && schedCutoff !== '--') {
+    cutoffStr = schedCutoff;
   } else {
-    cutoffStr = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
+    var configCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '');
+    if (configCutoff && String(configCutoff).trim() !== '' && String(configCutoff).trim() !== '無截止時間') {
+      cutoffStr = String(configCutoff).trim();
+    }
   }
 
   if (!cutoffStr) return false;
@@ -936,7 +941,7 @@ function handleTextMessage(event) {
     var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
-    var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
+    var cutoff = (daySchedule && daySchedule.cutoffTime) ? daySchedule.cutoffTime : (SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間');
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
     var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
@@ -964,8 +969,9 @@ function handleTextMessage(event) {
       var nidinResult = NidinModule.importNidinToMenu(importUrl, importDay, customName);
 
       var handleNidinSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 你訂 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 你訂 匯入');
         var msg = '✅ 已成功從你訂 (Nidin) 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -981,8 +987,9 @@ function handleTextMessage(event) {
       var fpResult = FoodpandaModule.importFoodpandaToMenu(importUrl, importDay, storeName);
 
       var handleFpSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 foodpanda 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 foodpanda 匯入');
         var msg = '✅ 已成功從 foodpanda 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -998,8 +1005,9 @@ function handleTextMessage(event) {
       var importPromise = UberEatsModule.importUberEatsToMenu(importUrl, importDay, storeName);
 
       var handleUberSuccess = function (result) {
+        var defaultCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : '無截止時間';
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
-        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 Uber Eats 匯入');
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, defaultCutoff, importUrl, '從 Uber Eats 匯入');
         var msg = '✅ 已成功從 Uber Eats 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
         return LineModule.replyText(replyToken, msg);
       };
@@ -1073,7 +1081,7 @@ function handleTextMessage(event) {
     var mMatch = menuPageMatch || standalonePageMatch;
     var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4] || mMatch[5]) || 1) : 1;
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-    var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
+    var curCutoff = SheetModule.getDefaultCutoffTime ? SheetModule.getDefaultCutoffTime() : SheetModule.getConfigValue('CUTOFF_TIME', '無截止時間');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
     var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
