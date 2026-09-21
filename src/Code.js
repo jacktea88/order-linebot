@@ -116,8 +116,9 @@ function showUberEatsImportDialog() {
           ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
           return;
         }
+        var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
         saveMenuItems(dayOfWeek, storeName, items);
-        setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+        setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 Uber Eats 匯入');
         ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
       });
     } else {
@@ -126,8 +127,9 @@ function showUberEatsImportDialog() {
         ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 Uber Eats 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
   } catch (err) {
@@ -177,8 +179,9 @@ function showFoodpandaImportDialog() {
         ui.alert('⚠️ 未能從 foodpanda 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 foodpanda 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 foodpanda 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
 
@@ -243,8 +246,9 @@ function showNidinImportDialog() {
         ui.alert('⚠️ 未能從你訂取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
         return;
       }
+      var defaultCutoff = (typeof getDefaultCutoffTime === 'function') ? getDefaultCutoffTime() : ((typeof SheetModule !== 'undefined' && SheetModule.getDefaultCutoffTime) ? SheetModule.getDefaultCutoffTime() : '無截止時間');
       saveMenuItems(dayOfWeek, storeName, items);
-      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 你訂 匯入');
+      setWeeklyScheduleDay(dayOfWeek, storeName, defaultCutoff, url, '從 你訂 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
     }
 
