@@ -3138,6 +3138,121 @@ SheetModule._mockStore.Menu = [];
 
 console.log('  ✔ Vietnamese (vi) locale support, commands, day aliases and pagination verified.\n');
 
+// -------------------------------------------------------------
+// Test 18: Cutoff Time Config Fallback, No-Cutoff Display, & Non-Blocking Rules
+// -------------------------------------------------------------
+console.log('▶ Test 18: Cutoff Time Config Fallback & Non-blocking Rules');
+
+// Rule 1: Fallback when writing / adding schedule
+// 1a. When Config CUTOFF_TIME exists, default cutoff should be Config CUTOFF_TIME
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '11:15';
+assert.strictEqual(SheetModule.getDefaultCutoffTime(), '11:15');
+SheetModule._mockStore.WeeklySchedule = [];
+SheetModule.setWeeklyScheduleDay('週一', '餐廳A'); // no cutoff passed
+var s1 = SheetModule.getScheduleByDay('週一');
+assert.strictEqual(s1.cutoffTime, '11:15', 'Should fallback to Config CUTOFF_TIME');
+
+SheetModule.setWeeklyScheduleDay('週一', '餐廳A', ''); // empty cutoff passed
+s1 = SheetModule.getScheduleByDay('週一');
+assert.strictEqual(s1.cutoffTime, '11:15', 'Empty cutoff should fallback to Config CUTOFF_TIME');
+
+// 1b. When Config CUTOFF_TIME is empty or missing, default cutoff should be '無截止時間'
+delete SheetModule._mockStore.Config['CUTOFF_TIME'];
+assert.strictEqual(SheetModule.getDefaultCutoffTime(), '無截止時間');
+SheetModule.setWeeklyScheduleDay('週二', '餐廳B'); // no cutoff passed
+var s2 = SheetModule.getScheduleByDay('週二');
+assert.strictEqual(s2.cutoffTime, '無截止時間', 'Should fallback to 無截止時間');
+
+SheetModule.setWeeklyScheduleDay('週二', '餐廳B', ''); // empty cutoff
+s2 = SheetModule.getScheduleByDay('週二');
+assert.strictEqual(s2.cutoffTime, '無截止時間', 'Empty cutoff should fallback to 無截止時間');
+
+// Rule 2: Custom restaurant / Platform import uses getDefaultCutoffTime()
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '10:45';
+SheetModule._mockStore.CustomRestaurants = {
+  '自訂美味': [
+    { name: '排骨飯', price: 100 }
+  ]
+};
+var customImpRes1 = SheetModule.importCustomRestaurantMenu('週三', '自訂美味');
+assert.strictEqual(customImpRes1.success, true);
+var s3 = SheetModule.getScheduleByDay('週三');
+assert.strictEqual(s3.cutoffTime, '10:45', 'Custom restaurant import should use Config CUTOFF_TIME');
+
+delete SheetModule._mockStore.Config['CUTOFF_TIME'];
+var customImpRes2 = SheetModule.importCustomRestaurantMenu('週四', '自訂美味');
+assert.strictEqual(customImpRes2.success, true);
+var s4 = SheetModule.getScheduleByDay('週四');
+assert.strictEqual(s4.cutoffTime, '無截止時間', 'Custom restaurant import should use 無截止時間 when Config is empty');
+
+// Rule 3: Card display fallback (WeeklySchedule & Menu flex)
+// 3a. WeeklySchedule Flex shows localized 'schedule.no_cutoff'
+var schedItems = [
+  { dayOfWeek: '週一', restaurantName: 'R1', cutoffTime: '' },
+  { dayOfWeek: '週二', restaurantName: 'R2', cutoffTime: '無截止時間' },
+  { dayOfWeek: '週三', restaurantName: 'R3', cutoffTime: '11:00' }
+];
+var schedZh = FlexModule.createWeeklyScheduleFlex(schedItems, 'zh-TW');
+var schedZhStr = JSON.stringify(schedZh);
+assert.ok(schedZhStr.includes('無截止時間'), 'zh-TW WeeklySchedule should display 無截止時間');
+assert.ok(schedZhStr.includes('11:00'), 'zh-TW WeeklySchedule should display 11:00');
+
+var schedEn = FlexModule.createWeeklyScheduleFlex(schedItems, 'en');
+var schedEnStr = JSON.stringify(schedEn);
+assert.ok(schedEnStr.includes('No cutoff time'), 'en WeeklySchedule should display No cutoff time');
+
+var schedJa = FlexModule.createWeeklyScheduleFlex(schedItems, 'ja');
+var schedJaStr = JSON.stringify(schedJa);
+assert.ok(schedJaStr.includes('締切なし'), 'ja WeeklySchedule should display 締切なし');
+
+var schedVi = FlexModule.createWeeklyScheduleFlex(schedItems, 'vi');
+var schedViStr = JSON.stringify(schedVi);
+assert.ok(schedViStr.includes('Không có giờ chốt'), 'vi WeeklySchedule should display Không có giờ chốt');
+
+// 3b. Menu Flex shows localized 'schedule.no_cutoff'
+var menuZh1 = FlexModule.createMenuFlex('R1', '', [{ name: 'Item', price: 50 }], '週一', 'zh-TW');
+assert.ok(JSON.stringify(menuZh1).includes('無截止時間'), 'zh-TW Menu flex should display 無截止時間');
+
+var menuZh2 = FlexModule.createMenuFlex('R1', '無截止時間', [{ name: 'Item', price: 50 }], '週一', 'zh-TW');
+assert.ok(JSON.stringify(menuZh2).includes('無截止時間'), 'zh-TW Menu flex should display 無截止時間 when value is 無截止時間');
+
+var menuEn = FlexModule.createMenuFlex('R1', '', [{ name: 'Item', price: 50 }], '週一', 'en');
+assert.ok(JSON.stringify(menuEn).includes('No cutoff time'), 'en Menu flex should display No cutoff time');
+
+// Rule 4: Cutoff decision (isTodayCutoffPassed)
+// Wednesday, 12:00 PM
+var noonRef = new Date('2026-09-09T12:00:00+08:00');
+
+// 4a. WeeklySchedule has entry with valid cutoff '10:30' -> 12:00 is cutoff passed (true)
+SheetModule._mockStore.WeeklySchedule = [
+  { dayOfWeek: '週三', restaurantName: 'Rest', cutoffTime: '10:30', isActive: 'TRUE' }
+];
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), true, 'Past 10:30 should be cutoff passed');
+
+// 4b. WeeklySchedule has entry, cutoffTime is empty, Config has CUTOFF_TIME '13:00' -> 12:00 is not cutoff passed (false)
+SheetModule._mockStore.WeeklySchedule = [
+  { dayOfWeek: '週三', restaurantName: 'Rest', cutoffTime: '', isActive: 'TRUE' }
+];
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '13:00';
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), false, 'Before Config 13:00 cutoff should not be passed');
+
+// 4c. WeeklySchedule has entry, cutoffTime is empty, Config has CUTOFF_TIME '11:00' -> 12:00 is cutoff passed (true)
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '11:00';
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), true, 'After Config 11:00 cutoff should be passed');
+
+// 4d. WeeklySchedule has entry, cutoffTime is empty, Config also has NO CUTOFF_TIME -> do NOT block (false)
+delete SheetModule._mockStore.Config['CUTOFF_TIME'];
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), false, 'No cutoff in schedule and no cutoff in config should NOT block ordering');
+
+// 4e. WeeklySchedule has entry with '無截止時間', Config also has NO CUTOFF_TIME -> do NOT block (false)
+SheetModule._mockStore.WeeklySchedule = [
+  { dayOfWeek: '週三', restaurantName: 'Rest', cutoffTime: '無截止時間', isActive: 'TRUE' }
+];
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), false, 'Cutoff as 無截止時間 should NOT block ordering');
+
+console.log('  ✔ Config CUTOFF_TIME fallback, no-cutoff display, and non-blocking rules verified.\n');
+
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
+
 
 
