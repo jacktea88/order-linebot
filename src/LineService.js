@@ -98,7 +98,7 @@ function _httpPostJson(url, headers, payload) {
       if (typeof console !== 'undefined') {
         console.log('✅ [LINE API Success] HTTP ' + statusCode);
       }
-      if (typeof logToSheet === 'function') {
+      if (typeof logToSheet === 'function' && getConfigProperty('ENABLE_LINE_SUCCESS_LOGS', 'false') === 'true') {
         logToSheet('LINE_SUCCESS', 'HTTP ' + statusCode, contentText);
       }
     }
@@ -295,13 +295,17 @@ function getUserProfile(userId, groupId) {
     return { displayName: '成員', pictureUrl: '', userId: '' };
   }
 
+  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    return globalThis._mockProfiles[userId];
+  }
+
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return { displayName: '成員', pictureUrl: '', userId: userId };
+  }
+
   var cacheKey = (groupId || 'direct') + ':' + userId;
   if (_userProfileCache[cacheKey]) {
     return _userProfileCache[cacheKey];
-  }
-
-  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
-    return globalThis._mockProfiles[userId];
   }
 
   var headers = _authHeaders();

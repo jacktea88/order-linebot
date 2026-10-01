@@ -118,6 +118,25 @@
 
 輸入「`幫助`」或「`說明`」時，機器人將傳送具備快捷按鈕的互動卡片：
 
+| 卡片文字 | i18n key | 來源檔 | 備註 |
+| :--- | :--- | :--- | :--- |
+| 卡片標題 | `help.title` | [src/I18n.js](src/I18n.js#L68) | 依目前語系顯示，如 `📖 便當點餐使用說明` |
+| 說明按鈕區塊：本週菜單 | `help.cmd_weekly_schedule.*` | [src/I18n.js](src/I18n.js#L72) | 包含標題、描述、按鈕文字、實際送出指令 |
+| 說明按鈕區塊：今日菜單 | `help.cmd_today_menu.*` | [src/I18n.js](src/I18n.js#L76) | 同上 |
+| 說明按鈕區塊：小孩選單 | `help.cmd_children.*` | [src/I18n.js](src/I18n.js#L80) | 同上 |
+| 說明按鈕區塊：我的訂單 | `help.cmd_my_today.*` | [src/I18n.js](src/I18n.js#L84) | 同上 |
+| 說明按鈕區塊：我的本週訂單 | `help.cmd_my_weekly.*` | [src/I18n.js](src/I18n.js#L88) | 同上 |
+| 說明按鈕區塊：取消餐點 | `help.cmd_cancel.*` | [src/I18n.js](src/I18n.js#L92) | 同上 |
+| 說明按鈕區塊：本週統計 | `help.cmd_weekly_stats.*` | [src/I18n.js](src/I18n.js#L96) | 同上 |
+| 說明按鈕區塊：今日統計 | `help.cmd_today_stats.*` | [src/I18n.js](src/I18n.js#L100) | 同上 |
+| 說明按鈕區塊：結單截止 | `help.cmd_close.*` | [src/I18n.js](src/I18n.js#L104) | 同上 |
+| 說明按鈕區塊：設定語言 | `help.cmd_language.*` | [src/I18n.js](src/I18n.js#L108) | 只有開啟 `ENABLE_USER_LOCALE=true` 時才會出現 |
+| 說明按鈕區塊：特別日期菜單 | `help.cmd_special.*` | [src/I18n.js](src/I18n.js#L112) | 同上 |
+| 底部提示 | `help.tip_click` | [src/I18n.js](src/I18n.js#L69) | 例如「點擊上方任一按鈕，即可直接發送指令！」 |
+| 底部授權連結前綴 | `help.license` | [src/I18n.js](src/I18n.js#L70) | 後面串接 `Config` 的 `SOURCE_CODE_URL` |
+
+卡片的組裝邏輯在 [src/FlexMessage.js](src/FlexMessage.js#L1470)，觸發入口在 [src/OrderService.js](src/OrderService.js#L921)，實際呼叫 `createHelpFlex()` 的地方在 [src/OrderService.js](src/OrderService.js#L925)。
+
 <p align="center">
   <img src="docs/images/help_menu.jpg" alt="幫助選單" width="380" /><br>
   <b>幫助選單</b>
@@ -231,6 +250,10 @@ npm run bundle
 - **Uber Eats 或外送平台抓取遇到 Cloudflare 403 阻擋時該如何處理？（Chrome 擴充功能匯入方案）**
   - Uber Eats 等外送平台針對雲端機房 IP（包含 Google Apps Script `UrlFetchApp` 請求）部署了 Cloudflare Enterprise Bot 防護，會觸發 HTTP 403 Turnstile Challenge 阻擋。
   - 本專案特別提供隨附的 **Chrome 瀏覽器擴充套件**（位於 [`extensions/chrome-menu-exporter/`](extensions/chrome-menu-exporter/README.md)），利用管理員真實瀏覽器工作階段（自帶 Cookie 與真人憑證），在店家頁面一鍵擷取菜單並自動轉換為試算表格式，點擊「複製 TSV」後至 Google 試算表 `Menu` 頁籤按下 `Ctrl+V` (Mac: `Cmd+V`) 即可 1 秒完成貼上！詳細教學請參閱 [docs/deployment_guide.md#q17-uber-eats-或外送平台遭-cloudflare-403-阻擋時如何使用-chrome-擴充功能匯入菜單](docs/deployment_guide.md#q17-uber-eats-或外送平台遭-cloudflare-403-阻擋時如何使用-chrome-擴充功能匯入菜單)。
+- **幫助卡片與菜單卡片的固定資料快取什麼時候會啟動？**
+  需要先開啟 `DEV_FLEX_STATIC_CACHE_MODE=true`。它只快取幫助卡片與菜單卡片中的固定翻譯字串與按鈕文案，第一次建立卡片時會先寫入快取，第二次用同樣語系與同樣條件讀取時才會直接命中；實際菜單品項、價格、售完狀態與數量不在快取範圍內。
+- **訂單查詢與摘要快取什麼時候會啟動？**
+  需要同時開啟 `DEV_ORDER_PREVIEW_MODE=true` 與 `DEV_ORDER_CACHE_MODE=true`。第一次查詢同條件時會先建立快取，第二次同條件讀取才會直接命中；一旦有新增、取消或批次取消訂單，版本號會更新，下一次查詢會重新建立快取。
 
 ---
 

@@ -9,6 +9,28 @@ const path = require('path');
 const srcDir = path.join(__dirname, '..', 'src');
 const distDir = path.join(__dirname, '..', 'dist');
 
+function formatTaipeiTimestamp(date) {
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+
+  const values = {};
+  parts.forEach(part => {
+    if (part.type !== 'literal') {
+      values[part.type] = part.value;
+    }
+  });
+
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}+08:00`;
+}
+
 if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
 }
@@ -29,7 +51,7 @@ const fileOrder = [
 
 let bundledContent = `/**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: ${new Date().toISOString()}
+ * Automatically generated on: ${formatTaipeiTimestamp(new Date())}
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script

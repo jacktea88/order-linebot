@@ -377,7 +377,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '幫助' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-assert.strictEqual(lastReply.altText, '便當點餐指令說明');
+assert.strictEqual(lastReply.altText, '指令說明');
 const helpBody = lastReply.flex.body.contents;
 const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
 assert.strictEqual(helpButtons.length, 10);
@@ -388,7 +388,7 @@ assert.strictEqual(helpButtons[3].action.text, '我的訂單');
 assert.strictEqual(helpButtons[4].action.text, '我的本週訂單');
 assert.strictEqual(helpButtons[5].action.text, '取消餐點');
 assert.strictEqual(helpButtons[8].action.text, '結單');
-assert.strictEqual(helpButtons[9].action.text, '特餐菜單');
+assert.strictEqual(helpButtons[9].action.text, '特定日期工作項目');
 console.log('  ✔ Buttonized Help card verified with 10 quick-action buttons.');
 
 // Verify clicking the 小孩選單 button from Help invokes children submenu
@@ -3279,11 +3279,11 @@ const spSold = function (name) { return SheetModule.getSpecialSoldMap(SP_DATE)[n
 assert.ok(spSend('sp_alice', '新增特餐 ' + SP_DATE + ' 感恩大餐').text.includes('只有主辦人'));
 assert.strictEqual(SheetModule.getSpecialDates().length, 0);
 var spAdd = spSend('sp_boss', '新增特餐 ' + SP_DATE + ' 感恩大餐');
-assert.ok(spAdd.text.includes('已建立特餐日期'));
+assert.ok(spAdd.text.includes('已建立特定日期工作項目'));
 assert.ok(spAdd.text.includes('2026-10-01 23:59'), 'Default cutoff must be event date - 14 days at 23:59');
 assert.ok(spSend('sp_alice', '特餐品項 ' + SP_DATE + ' 火雞套餐 680 5').text.includes('只有主辦人'));
 assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 火雞套餐 680 5').text.includes('已儲存'));
-assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 沙拉 120').text.includes('不限量'));
+assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 沙拉 120').text.includes('不限名額'));
 assert.strictEqual(SheetModule.getSpecialItems(SP_DATE).length, 2);
 
 // 19.2 Browsing: date list and menu with remaining counts
@@ -3296,17 +3296,17 @@ assert.ok(spMenuJson.includes('剩餘 5/5'));
 assert.ok(spMenuJson.includes('特餐 ' + SP_DATE + ' 火雞套餐+1'));
 
 // 19.3 Quantity limit is shared across everyone; no partial fill
-assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('預訂成功'));
+assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('登記成功'));
 assert.ok(lastReply.text.includes('剩餘 3 份'));
 assert.strictEqual(SheetModule._mockStore.Orders[0].dayOfWeek, '特餐');
 assert.strictEqual(SheetModule._mockStore.Orders[0].date, SP_DATE);
 assert.strictEqual(SheetModule._mockStore.Orders[0].price, 680);
 assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+4').text.includes('僅剩 3 份'));
 assert.strictEqual(spSold('火雞套餐'), 2, 'Over-quantity order must not be partially filled');
-assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+3').text.includes('預訂成功'));
+assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+3').text.includes('登記成功'));
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 火雞套餐+1').text.includes('已售完'));
 assert.strictEqual(spSold('火雞套餐'), 5);
-assert.ok(JSON.stringify(spSend('sp_carol', '特餐 ' + SP_DATE).flex).includes('已售完'));
+assert.ok(JSON.stringify(spSend('sp_carol', '特餐 ' + SP_DATE).flex).includes('已額滿'));
 
 // 19.4 Special orders stay out of regular weekday views
 assert.strictEqual(SheetModule.getUserOrders('sp_alice', SP_GROUP).length, 0);
@@ -3316,8 +3316,8 @@ assert.strictEqual(SheetModule.getGroupOrders(SP_GROUP, SP_DATE, '特餐').lengt
 // 19.5 Cancelling frees stock; unlimited items skip the stock check
 assert.ok(spSend('sp_alice', '取消特餐 ' + SP_DATE + ' 火雞套餐').text.includes('已取消'));
 assert.strictEqual(spSold('火雞套餐'), 3);
-assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('預訂成功'));
-assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 沙拉+50').text.includes('預訂成功'));
+assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('登記成功'));
+assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 沙拉+50').text.includes('登記成功'));
 assert.ok(!lastReply.text.includes('剩餘'));
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 不存在的菜+1').text.includes('找不到品項'));
 assert.ok(spSend('sp_bob', '我的特餐').text.includes('火雞套餐'));
@@ -3328,21 +3328,21 @@ assert.ok(spSend('sp_alice', '特餐截止 ' + SP_DATE + ' 2026-09-30 18:00').te
 assert.ok(spSend('sp_boss', '特餐截止 ' + SP_DATE + ' 2026-10-20 18:00').text.includes('不可晚於活動日'));
 assert.ok(spSend('sp_boss', '特餐截止 ' + SP_DATE + ' 2026-09-07 10:00').text.includes('已更新'));
 assert.ok(lastReply.text.includes('2026-09-07 10:00'));
-assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('預訂成功'));
+assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('登記成功'));
 
 globalThis._mockCurrentDate = new Date('2026-09-07T10:30:00+08:00');
-assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('已截止'));
+assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('已截止登記'));
 assert.ok(spSend('sp_alice', '取消特餐 ' + SP_DATE + ' 沙拉').text.includes('無法取消'));
 assert.strictEqual(SheetModule.getUserOrders('sp_alice', SP_GROUP, SP_DATE, '特餐').length, 1);
-assert.ok(JSON.stringify(spSend('sp_alice', '特餐 ' + SP_DATE).flex).includes('已截止'));
+assert.ok(JSON.stringify(spSend('sp_alice', '特餐 ' + SP_DATE).flex).includes('已截止登記'));
 
 spSend('sp_boss', '特餐截止 ' + SP_DATE + ' 2026-10-10 18:00');
-assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('預訂成功'), 'Extending the cutoff reopens ordering');
+assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('登記成功'), 'Extending the cutoff reopens ordering');
 
 // 19.7 Default cutoff applies again after reset (2026-10-02 is past 2026-10-01 23:59)
 spSend('sp_boss', '特餐截止 ' + SP_DATE + ' 預設');
 globalThis._mockCurrentDate = new Date('2026-10-02T09:00:00+08:00');
-assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('已截止'));
+assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('已截止登記'));
 assert.strictEqual(OrderModule.parseOrderText('特餐 沙拉+1').length >= 0, true);
 
 // 19.8 Invalid input

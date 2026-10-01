@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-30T23:45:50.341Z
+ * Automatically generated on: 2026-10-01T22:54:43+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -151,6 +151,113 @@ function getConfigProperty(key, defaultValue) {
   return defaultValue;
 }
 
+/**
+ * isDevFastMode — Fast-path flag for local testing and development.
+ * When enabled, the bot skips slower integration checks such as sheet existence scans
+ * and LINE profile lookups so webhook responses feel closer to the final reply path.
+ */
+function isDevFastMode() {
+  return getConfigProperty('DEV_FAST_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevOrderPreviewMode — Test-only flag for order-related commands.
+ * When enabled, order commands return a quick acknowledgement before any order sheet reads/writes.
+ */
+function isDevOrderPreviewMode() {
+  return getConfigProperty('DEV_ORDER_PREVIEW_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevOrderCacheMode — Short-term cache flag for order query/summary paths.
+ * This only makes sense together with DEV_ORDER_PREVIEW_MODE so it stays test-only.
+ */
+function isDevOrderCacheMode() {
+  return getConfigProperty('DEV_ORDER_CACHE_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevFlexStaticCacheMode — Cache fixed help/menu card text bundles.
+ * This only affects static translated strings and does not cache dynamic menu data.
+ */
+function isDevFlexStaticCacheMode() {
+  return getConfigProperty('DEV_FLEX_STATIC_CACHE_MODE', 'false') === 'true';
+}
+
+/**
+ * _maskScriptPropertyValue — Hide sensitive values while still showing enough context for debugging.
+ * @param {string} key
+ * @param {string} value
+ * @returns {string}
+ */
+function _maskScriptPropertyValue(key, value) {
+  var text = (value === null || value === undefined) ? '' : String(value);
+  if (!text) return '';
+  if (!key) return text;
+
+  if (/(token|secret|password|passwd|api[_-]?key|hash[_-]?salt|salt)/i.test(String(key))) {
+    if (text.length <= 8) {
+      return '***';
+    }
+    return text.slice(0, 4) + '***' + text.slice(-4);
+  }
+
+  return text;
+}
+
+/**
+ * showScriptPropertiesDiagnostics — Log and return script properties for debugging.
+ * Sensitive values are masked automatically. When `keys` is omitted, all script properties are shown.
+ * @param {Array<string>} [keys]
+ * @returns {Object<string,string>}
+ */
+function showScriptPropertiesDiagnostics(keys) {
+  var result = {};
+  var props = {};
+
+  try {
+    if (typeof PropertiesService !== 'undefined') {
+      props = PropertiesService.getScriptProperties().getProperties() || {};
+    }
+  } catch (e) {
+    props = {};
+  }
+
+  var targetKeys = (Array.isArray(keys) && keys.length > 0)
+    ? keys
+    : Object.keys(props);
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🔎 Script Properties Diagnostics Start');
+  }
+  if (typeof console !== 'undefined') {
+    console.log('🔎 Script Properties Diagnostics Start');
+  }
+
+  targetKeys.forEach(function (key) {
+    var rawValue = props.hasOwnProperty(key) ? props[key] : getConfigProperty(key, '');
+    var maskedValue = _maskScriptPropertyValue(key, rawValue);
+    result[key] = maskedValue;
+
+    var line = key + ' = ' + maskedValue;
+    if (typeof Logger !== 'undefined') {
+      Logger.log(line);
+    }
+    if (typeof console !== 'undefined') {
+      console.log(line);
+    }
+  });
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🔎 Script Properties Diagnostics End');
+  }
+  if (typeof console !== 'undefined') {
+    console.log('🔎 Script Properties Diagnostics End');
+  }
+
+  return result;
+}
+
 // Dual-Environment Export (GAS + Node.js)
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -160,11 +267,21 @@ function getConfigProperty(key, defaultValue) {
 
   g.CONFIG = CONFIG;
   g.getConfigProperty = getConfigProperty;
+  g.isDevFastMode = isDevFastMode;
+  g.isDevOrderPreviewMode = isDevOrderPreviewMode;
+  g.isDevOrderCacheMode = isDevOrderCacheMode;
+  g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
+  g.showScriptPropertiesDiagnostics = showScriptPropertiesDiagnostics;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       CONFIG: CONFIG,
-      getConfigProperty: getConfigProperty
+      getConfigProperty: getConfigProperty,
+      isDevFastMode: isDevFastMode,
+      isDevOrderPreviewMode: isDevOrderPreviewMode,
+      isDevOrderCacheMode: isDevOrderCacheMode,
+      isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
+      showScriptPropertiesDiagnostics: showScriptPropertiesDiagnostics
     };
   }
 })();
@@ -241,10 +358,10 @@ var I18N_MESSAGES = {
     'weekday.sun': '週日',
 
     // Help Flex
-    'help.title': '📖 便當點餐使用說明',
+    'help.title': '📖 使用說明',
     'help.tip_click': '💡 點擊上方任一按鈕，即可直接發送指令！',
     'help.license': '服務授權：AGPL-3.0 原始碼 ',
-    'help.alt_text': '便當點餐指令說明',
+    'help.alt_text': '指令說明',
     'help.cmd_weekly_schedule.title': '📅 本週菜單',
     'help.cmd_weekly_schedule.desc': '查看週一至週五排程',
     'help.cmd_weekly_schedule.btn': '看本週',
@@ -257,7 +374,7 @@ var I18N_MESSAGES = {
     'help.cmd_children.desc': '小孩名冊與用餐分配管理',
     'help.cmd_children.btn': '小孩選單',
     'help.cmd_children.cmd': '小孩選單',
-    'help.cmd_my_today.title': '📝 我的訂單',
+    'help.cmd_my_today.title': '📝 我的登記紀錄',
     'help.cmd_my_today.desc': '查詢個人今日點餐紀錄',
     'help.cmd_my_today.btn': '查今日',
     'help.cmd_my_today.cmd': '我的訂單',
@@ -265,7 +382,7 @@ var I18N_MESSAGES = {
     'help.cmd_my_weekly.desc': '查詢本週全梯次預訂',
     'help.cmd_my_weekly.btn': '查全週',
     'help.cmd_my_weekly.cmd': '我的本週訂單',
-    'help.cmd_cancel.title': '🗑️ 取消餐點',
+    'help.cmd_cancel.title': '🗑️ 取消登記',
     'help.cmd_cancel.desc': '自選退訂特定餐點',
     'help.cmd_cancel.btn': '去取消',
     'help.cmd_cancel.cmd': '取消餐點',
@@ -285,48 +402,48 @@ var I18N_MESSAGES = {
     'help.cmd_language.desc': '切換個人顯示與操作語言',
     'help.cmd_language.btn': '切換語言',
     'help.cmd_language.cmd': '設定語言',
-    'help.cmd_special.title': '🎉 特別日期菜單',
-    'help.cmd_special.desc': '特定日期限量菜色，需提前預訂',
-    'help.cmd_special.btn': '看特餐',
-    'help.cmd_special.cmd': '特餐菜單',
+    'help.cmd_special.title': '🎉 特定日期工作項目',
+    'help.cmd_special.desc': '特定日期各組事項，請提前登記工作人員',
+    'help.cmd_special.btn': '看工作項目',
+    'help.cmd_special.cmd': '特定日期工作項目',
 
     // Special-date menus
-    'special.title_list': '🎉 特別日期菜單',
-    'special.alt_menu': '特餐菜單 {date}',
-    'special.list_empty': '目前沒有特別日期菜單。',
-    'special.list_hint': '點選日期查看菜單；預訂指令：特餐 日期 品名+數量',
-    'special.status_open': '預訂中',
-    'special.status_closed': '已截止',
+    'special.title_list': '🎉 特定日期工作項目',
+    'special.alt_menu': '工作項目 {date}',
+    'special.list_empty': '目前沒有特定日期工作項目。',
+    'special.list_hint': '點選日期查看工作項目；登記指令：特定日期工作項目 日期 項目+人員',
+    'special.status_open': '登記中',
+    'special.status_closed': '已截止登記',
     'special.cutoff_line': '⏰ 預訂截止：{cutoff}（{status}）',
     'special.cutoff_label': '⏰ 預訂截止：{cutoff}',
-    'special.btn_view': '看菜單',
-    'special.btn_order': '+1 預訂',
-    'special.btn_sold_out': '已售完',
-    'special.btn_closed': '已截止',
+    'special.btn_view': '看工作項目',
+    'special.btn_order': '+1 登記',
+    'special.btn_sold_out': '已額滿',
+    'special.btn_closed': '已截止登記',
     'special.remaining': '剩餘 {left}/{limit}',
-    'special.unlimited': '不限量',
-    'special.limit_n': '限量 {n} 份',
-    'special.menu_empty': '（此日期尚未建立菜色）',
+    'special.unlimited': '不限名額',
+    'special.limit_n': '限量 {n} 名額',
+    'special.menu_empty': '（此日期尚未建立工作項目）',
     'special.page_indicator': '第 {page} / {total} 頁',
     'special.btn_prev': '上一頁',
     'special.btn_next': '下一頁',
     'special.footer_hint': '需於截止前預訂，截止後無法新增或取消',
-    'special.usage': '📝 特餐指令：\n• 特餐菜單（列出日期）\n• 特餐 日期（看菜單）\n• 特餐 日期 品名+數量（預訂）\n• 取消特餐 日期 品名\n• 我的特餐／特餐統計 [日期]\n日期格式：2026-11-15、11/15 或 11月15日',
-    'special.usage_add': '用法：新增特餐 日期 [標題]\n例如：新增特餐 2026-11-15 感恩節大餐',
-    'special.usage_item': '用法：特餐品項 日期 品名 價格 [數量上限]\n例如：特餐品項 2026-11-15 火雞套餐 680 10\n（數量省略或 0 代表不限量）',
-    'special.usage_cutoff': '用法：特餐截止 日期 截止日期 時間\n例如：特餐截止 2026-11-15 2026-11-05 18:00\n改回預設：特餐截止 2026-11-15 預設',
-    'special.usage_cancel': '取消用法：取消特餐 日期 品名（或「全部」）',
+    'special.usage': '📝 特定日期工作項目指令：\n• 特定日期工作項目（列出日期）\n• 特定日期工作項目 日期（看工作項目）\n• 特定日期工作項目 日期 項目+人員（登記）\n• 取消特定日期工作項目 日期 項目\n• 我的特定日期工作項目／特定日期工作項目統計 [日期]\n日期格式：2026-11-15、11/15 或 11月15日',
+    'special.usage_add': '用法：新增特定日期工作項目 日期 [標題]\n例如：新增特定日期工作項目 2026-11-15 佈置會場',
+    'special.usage_item': '用法：特定日期工作項目項目 日期 項目 人數上限\n例如：特定日期工作項目項目 2026-11-15 佈置會場 10\n（人數上限省略或 0 代表不限名額）',
+    'special.usage_cutoff': '用法：特定日期工作項目截止 日期 截止日期 時間\n例如：特定日期工作項目截止 2026-11-15 2026-11-05 18:00\n改回預設：特定日期工作項目截止 2026-11-15 預設',
+    'special.usage_cancel': '取消用法：取消特定日期工作項目 日期 項目（或「全部」）',
     'special.err_date_format': '⚠️ 日期格式不正確，請使用 2026-11-15、11/15 或 11月15日。',
-    'special.err_not_found': '找不到 {date} 的特餐菜單。',
+    'special.err_not_found': '找不到 {date} 的特定日期工作項目。',
     'special.err_past_date': '⚠️ {date} 已經過去，無法建立。',
-    'special.err_closed': '⛔ {date} 的特餐已截止預訂（截止時間：{cutoff}）。',
-    'special.err_cancel_closed': '⛔ {date} 的特餐已過截止時間（{cutoff}），無法取消，請洽主辦人。',
+    'special.err_closed': '⛔ {date} 的特定日期工作項目已截止登記（截止時間：{cutoff}）。',
+    'special.err_cancel_closed': '⛔ {date} 的特定日期工作項目已過截止時間（{cutoff}），無法取消，請洽主辦人。',
     'special.err_organizer_only': '⚠️ 只有主辦人可以執行此操作。',
     'special.err_no_organizer': '⚠️ 尚未設定主辦人，請先由主辦人傳送「開單」，或在 Config 設定 ORGANIZER_ID。',
     'special.err_cutoff_after_event': '⚠️ 截止時間不可晚於活動日 {date}。',
-    'special.add_ok': '✅ 已建立特餐日期 {date}',
-    'special.add_next': '接著請用「特餐品項 日期 品名 價格 [數量]」新增菜色。',
-    'special.item_ok': '✅ {date} 特餐品項已儲存：{item} $' + '{price}（{limit}，目前已預訂 {sold} 份）',
+    'special.add_ok': '✅ 已建立特定日期工作項目 {date}',
+    'special.add_next': '接著請用「特定日期工作項目項目 日期 項目 人數上限」新增工作項目。',
+    'special.item_ok': '✅ {date} 特定日期工作項目項目已儲存：{item} $' + '{price}（{limit}，目前已登記 {sold} 人）',
     'special.cutoff_show': '📅 {date}',
     'special.cutoff_ok': '✅ 已更新 {date} 的截止時間',
     'special.fail_no_item': '❌ 找不到品項「{item}」',
@@ -335,17 +452,17 @@ var I18N_MESSAGES = {
     'special.fail_exceeds': '❌ {item}：數量不足，僅剩 {left} 份',
     'special.fail_busy': '❌ {item}：系統忙碌，請稍後再試',
     'special.left_suffix': '（剩餘 {left} 份）',
-    'special.order_ok': '✅ 特餐預訂成功【{date}】',
+    'special.order_ok': '✅ 特定日期工作項目登記成功【{date}】',
     'special.order_total': '💰 合計：$' + '{amount}',
-    'special.notify_order': '📢【特餐預訂】{user}\n{date}\n{items}\n合計 $' + '{amount}',
-    'special.notify_cancel': '📢【特餐取消】{user} 取消 {date} 共 {count} 筆',
-    'special.cancel_ok': '✅ 已取消 {date} 的特餐 {count} 筆',
-    'special.cancel_none': '找不到 {date} 符合的特餐訂單。',
-    'special.my_title': '🎉 我的特餐訂單',
-    'special.my_empty': '您目前沒有特餐訂單。',
+    'special.notify_order': '📢【特定日期工作項目登記】{user}\n{date}\n{items}\n合計 $' + '{amount}',
+    'special.notify_cancel': '📢【特定日期工作項目取消】{user} 取消 {date} 共 {count} 筆',
+    'special.cancel_ok': '✅ 已取消 {date} 的特定日期工作項目 {count} 筆',
+    'special.cancel_none': '找不到 {date} 符合的特定日期工作項目訂單。',
+    'special.my_title': '🎉 我的特定日期工作項目訂單',
+    'special.my_empty': '您目前沒有特定日期工作項目訂單。',
     'special.stats_none': '  （尚無訂單）',
-    'special.stats_empty': '目前沒有特餐訂單。',
-    'special.stats_total': '合計：{qty} 份 ／ $' + '{amount}',
+    'special.stats_empty': '目前沒有特定日期工作項目訂單。',
+    'special.stats_total': '合計：{qty} 人 ／ $' + '{amount}',
 
     // Language selector
     'lang.title': '🌐 語言設定 (Language Settings)',
@@ -2082,7 +2199,7 @@ var I18N_COMMANDS = {
     'cmd.import_nidin': ['你訂匯入', 'nidin匯入'],
     'cmd.import_custom':['匯入自訂餐廳', '匯入餐廳', '自訂餐廳匯入'],
     'cmd.lang':     ['設定語言', '切換語言', '語言設定', '語言', 'lang', 'language', '/lang'],
-    'cmd.special_menu':   ['特餐菜單', '特別菜單', '特餐'],
+    'cmd.special_menu':   ['特定日期工作項目', '特餐菜單', '特別菜單', '特餐'],
     'cmd.special_add':    ['新增特餐'],
     'cmd.special_item':   ['特餐品項'],
     'cmd.special_cutoff': ['特餐截止'],
@@ -2575,7 +2692,7 @@ function _httpPostJson(url, headers, payload) {
       if (typeof console !== 'undefined') {
         console.log('✅ [LINE API Success] HTTP ' + statusCode);
       }
-      if (typeof logToSheet === 'function') {
+      if (typeof logToSheet === 'function' && getConfigProperty('ENABLE_LINE_SUCCESS_LOGS', 'false') === 'true') {
         logToSheet('LINE_SUCCESS', 'HTTP ' + statusCode, contentText);
       }
     }
@@ -2772,13 +2889,17 @@ function getUserProfile(userId, groupId) {
     return { displayName: '成員', pictureUrl: '', userId: '' };
   }
 
+  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    return globalThis._mockProfiles[userId];
+  }
+
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return { displayName: '成員', pictureUrl: '', userId: userId };
+  }
+
   var cacheKey = (groupId || 'direct') + ':' + userId;
   if (_userProfileCache[cacheKey]) {
     return _userProfileCache[cacheKey];
-  }
-
-  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
-    return globalThis._mockProfiles[userId];
   }
 
   var headers = _authHeaders();
@@ -3015,6 +3136,220 @@ var _mockStore = {
   SpecialMenuDates: [],
   SpecialMenuItems: []
 };
+
+function _formatTaipeiTimestamp(date) {
+  var d = date || new Date();
+  try {
+    if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+      return Utilities.formatDate(d, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+    }
+  } catch (e) {}
+
+  try {
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+      var parts = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).formatToParts(d);
+      var values = {};
+      parts.forEach(function (part) {
+        if (part.type !== 'literal') {
+          values[part.type] = part.value;
+        }
+      });
+      return values.year + '-' + values.month + '-' + values.day + ' ' + values.hour + ':' + values.minute + ':' + values.second;
+    }
+  } catch (e) {}
+
+  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  var twDate = new Date(utc + (3600000 * 8));
+  var y = twDate.getFullYear();
+  var m = ('0' + (twDate.getMonth() + 1)).slice(-2);
+  var day = ('0' + twDate.getDate()).slice(-2);
+  var hh = ('0' + twDate.getHours()).slice(-2);
+  var mm = ('0' + twDate.getMinutes()).slice(-2);
+  var ss = ('0' + twDate.getSeconds()).slice(-2);
+  return y + '-' + m + '-' + day + ' ' + hh + ':' + mm + ':' + ss;
+}
+
+var _sheetServiceRuntimeCache = {
+  configMap: null,
+  weeklySchedule: null,
+  menuRows: null
+};
+
+var _sheetServiceCacheConfig = {
+  configMapTtlSeconds: 60,
+  weeklyScheduleTtlSeconds: 60,
+  menuRowsTtlSeconds: 60
+};
+
+function _getSheetServiceCachePrefix() {
+  if (!isGasRuntime()) return 'sheetsvc:mock';
+  try {
+    var ss = getSpreadsheet();
+    if (ss && typeof ss.getId === 'function') {
+      return 'sheetsvc:' + ss.getId();
+    }
+  } catch (e) {}
+  return 'sheetsvc:default';
+}
+
+function _getSheetServiceScriptCache() {
+  if (!isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getSheetServiceCacheKey(name) {
+  return _getSheetServiceCachePrefix() + ':' + name;
+}
+
+function _readSheetServiceCache(name) {
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getSheetServiceCacheKey(name));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeSheetServiceCache(name, value, ttlSeconds) {
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return;
+  try {
+    cache.put(_getSheetServiceCacheKey(name), JSON.stringify(value), ttlSeconds || 60);
+  } catch (e) {}
+}
+
+function invalidateSheetServiceCaches() {
+  var cache = _getSheetServiceScriptCache();
+  var keys = [
+    _getSheetServiceCacheKey('configMap'),
+    _getSheetServiceCacheKey('weeklySchedule'),
+    _getSheetServiceCacheKey('menuRows')
+  ];
+  if (cache && cache.removeAll) {
+    try {
+      cache.removeAll(keys);
+    } catch (e) {}
+  }
+  resetSheetServiceRuntimeCache();
+}
+
+function isSheetLoggingEnabled() {
+  var value = getConfigProperty('ENABLE_SHEET_LOGS', 'true');
+  return String(value).toLowerCase() === 'true';
+}
+
+function resetSheetServiceRuntimeCache() {
+  _sheetServiceRuntimeCache.configMap = null;
+  _sheetServiceRuntimeCache.weeklySchedule = null;
+  _sheetServiceRuntimeCache.menuRows = null;
+}
+
+var _orderQueryCacheConfig = {
+  ttlSeconds: 60
+};
+
+function _isDevOrderQueryCacheEnabled() {
+  var previewMode = (typeof isDevOrderPreviewMode === 'function') && isDevOrderPreviewMode();
+  var cacheMode = (typeof isDevOrderCacheMode === 'function') && isDevOrderCacheMode();
+  return previewMode && cacheMode;
+}
+
+function _getOrderQueryCacheVersion() {
+  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
+    return '0';
+  }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var current = String(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0').trim();
+    if (!current) current = '0';
+    return current;
+  } catch (e) {
+    return '0';
+  }
+}
+
+function _bumpOrderQueryCacheVersion() {
+  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
+    return '0';
+  }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var current = parseInt(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0', 10);
+    if (!isFinite(current)) current = 0;
+    var next = String(current + 1);
+    props.setProperty('ORDER_QUERY_CACHE_VERSION', next);
+    return next;
+  } catch (e) {
+    return '0';
+  }
+}
+
+function _getOrderQueryCachePrefix() {
+  var version = _getOrderQueryCacheVersion();
+  return 'orderQuery:v' + version;
+}
+
+function _getOrderQueryScriptCache() {
+  if (!isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getOrderQueryCacheKey(scope, parts) {
+  var keyParts = [scope, _getOrderQueryCachePrefix()];
+  for (var i = 0; i < parts.length; i++) {
+    keyParts.push(String(parts[i] == null ? '' : parts[i]));
+  }
+  return keyParts.join('|');
+}
+
+function _readOrderQueryCache(scope, parts) {
+  if (!_isDevOrderQueryCacheEnabled()) return null;
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getOrderQueryCacheKey(scope, parts));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeOrderQueryCache(scope, parts, value) {
+  if (!_isDevOrderQueryCacheEnabled()) return;
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return;
+  try {
+    cache.put(_getOrderQueryCacheKey(scope, parts), JSON.stringify(value), _orderQueryCacheConfig.ttlSeconds);
+  } catch (e) {}
+}
+
+function invalidateOrderQueryCaches() {
+  if (!isGasRuntime()) {
+    return;
+  }
+  _bumpOrderQueryCacheVersion();
+}
 
 /**
  * Check if running inside Google Apps Script
@@ -3335,6 +3670,9 @@ function initSheets() {
     }
   } catch (e) {}
 
+  invalidateSheetServiceCaches();
+  invalidateOrderQueryCaches();
+
   return true;
 }
 
@@ -3355,15 +3693,29 @@ function getConfigValue(key, defaultValue) {
   if (!ss) return defaultValue;
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CONFIG);
   if (!sheet) return defaultValue;
+  if (_sheetServiceRuntimeCache.configMap) {
+    return _sheetServiceRuntimeCache.configMap.hasOwnProperty(targetKey)
+      ? _sheetServiceRuntimeCache.configMap[targetKey]
+      : defaultValue;
+  }
+
+  var cachedConfigMap = _readSheetServiceCache('configMap');
+  if (cachedConfigMap) {
+    _sheetServiceRuntimeCache.configMap = cachedConfigMap;
+    return cachedConfigMap.hasOwnProperty(targetKey) ? cachedConfigMap[targetKey] : defaultValue;
+  }
 
   var data = sheet.getDataRange().getValues();
+  var configMap = {};
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim().toUpperCase() === targetKey) {
-      var val = data[i][1];
-      return val != null ? String(val) : '';
-    }
+    var currentKey = String(data[i][0]).trim().toUpperCase();
+    if (!currentKey) continue;
+    var val = data[i][1];
+    configMap[currentKey] = val != null ? String(val) : '';
   }
-  return defaultValue;
+  _sheetServiceRuntimeCache.configMap = configMap;
+  _writeSheetServiceCache('configMap', configMap, _sheetServiceCacheConfig.configMapTtlSeconds);
+  return configMap.hasOwnProperty(targetKey) ? configMap[targetKey] : defaultValue;
 }
 
 /**
@@ -3383,10 +3735,12 @@ function setConfigValue(key, value) {
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === key) {
       sheet.getRange(i + 1, 2).setValue(String(value));
+      invalidateSheetServiceCaches();
       return true;
     }
   }
   sheet.appendRow([key, String(value), '']);
+  invalidateSheetServiceCaches();
   return true;
 }
 
@@ -3509,6 +3863,33 @@ function getWeeklySchedule() {
   if (!ss) return [];
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
   if (!sheet) return [];
+  if (_sheetServiceRuntimeCache.weeklySchedule) {
+    return _sheetServiceRuntimeCache.weeklySchedule.map(function (item) {
+      return {
+        dayOfWeek: item.dayOfWeek,
+        restaurantName: item.restaurantName,
+        cutoffTime: item.cutoffTime,
+        uberEatsUrl: item.uberEatsUrl,
+        notes: item.notes,
+        isActive: item.isActive
+      };
+    });
+  }
+
+  var cachedWeeklySchedule = _readSheetServiceCache('weeklySchedule');
+  if (cachedWeeklySchedule) {
+    _sheetServiceRuntimeCache.weeklySchedule = cachedWeeklySchedule;
+    return cachedWeeklySchedule.map(function (item) {
+      return {
+        dayOfWeek: item.dayOfWeek,
+        restaurantName: item.restaurantName,
+        cutoffTime: item.cutoffTime,
+        uberEatsUrl: item.uberEatsUrl,
+        notes: item.notes,
+        isActive: item.isActive
+      };
+    });
+  }
 
   var rows = sheet.getDataRange().getValues();
   var list = [];
@@ -3523,7 +3904,18 @@ function getWeeklySchedule() {
       isActive: String(r[5]).toUpperCase() === 'TRUE'
     });
   }
-  return list;
+  _sheetServiceRuntimeCache.weeklySchedule = list;
+  _writeSheetServiceCache('weeklySchedule', list, _sheetServiceCacheConfig.weeklyScheduleTtlSeconds);
+  return list.map(function (item) {
+    return {
+      dayOfWeek: item.dayOfWeek,
+      restaurantName: item.restaurantName,
+      cutoffTime: item.cutoffTime,
+      uberEatsUrl: item.uberEatsUrl,
+      notes: item.notes,
+      isActive: item.isActive
+    };
+  });
 }
 
 /**
@@ -3597,11 +3989,13 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
       if (uberEatsUrl !== undefined) sheet.getRange(j + 1, 4).setValue(uberEatsUrl);
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
       if (isActive !== undefined) sheet.getRange(j + 1, 6).setValue(isActive ? 'TRUE' : 'FALSE');
+      invalidateSheetServiceCaches();
       return true;
     }
   }
   // Append new day
   sheet.appendRow([dayOfWeek, restaurantName || '', effectiveCutoff, uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
+  invalidateSheetServiceCaches();
   return true;
 }
 
@@ -3625,30 +4019,45 @@ function getMenuItems(dayOfWeek, restaurantName) {
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.MENU);
   if (!sheet) return [];
 
-  var rows = sheet.getDataRange().getValues();
-  var menu = [];
-  for (var i = 1; i < rows.length; i++) {
-    var row = rows[i];
-    var isAvailable = String(row[5]).toUpperCase() === 'TRUE';
-    var itemDay = String(row[0]);
-    var itemRest = String(row[1]);
-
-    var dayMatches = (!dayOfWeek || itemDay === 'ALL' || itemDay === dayOfWeek);
-    var restMatches = restaurantName ? (itemRest === restaurantName) : true;
-
-    if (isAvailable && dayMatches && restMatches) {
-      menu.push({
-        dayOfWeek: itemDay,
-        restaurantName: itemRest,
-        category: String(row[2]),
-        itemName: String(row[3]),
-        price: Number(row[4]) || 0,
-        isAvailable: isAvailable,
-        description: String(row[6] || '')
-      });
+  if (!_sheetServiceRuntimeCache.menuRows) {
+    var cachedMenuRows = _readSheetServiceCache('menuRows');
+    if (cachedMenuRows) {
+      _sheetServiceRuntimeCache.menuRows = cachedMenuRows;
+    } else {
+      var rows = sheet.getDataRange().getValues();
+      var fullMenu = [];
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
+        fullMenu.push({
+          dayOfWeek: String(row[0]),
+          restaurantName: String(row[1]),
+          category: String(row[2]),
+          itemName: String(row[3]),
+          price: Number(row[4]) || 0,
+          isAvailable: String(row[5]).toUpperCase() === 'TRUE',
+          description: String(row[6] || '')
+        });
+      }
+      _sheetServiceRuntimeCache.menuRows = fullMenu;
+      _writeSheetServiceCache('menuRows', fullMenu, _sheetServiceCacheConfig.menuRowsTtlSeconds);
     }
   }
-  return menu;
+
+  return _sheetServiceRuntimeCache.menuRows.filter(function (item) {
+    var dayMatches = (!dayOfWeek || item.dayOfWeek === 'ALL' || item.dayOfWeek === dayOfWeek);
+    var restMatches = restaurantName ? (item.restaurantName === restaurantName) : true;
+    return item.isAvailable && dayMatches && restMatches;
+  }).map(function (item) {
+    return {
+      dayOfWeek: item.dayOfWeek,
+      restaurantName: item.restaurantName,
+      category: item.category,
+      itemName: item.itemName,
+      price: item.price,
+      isAvailable: item.isAvailable,
+      description: item.description
+    };
+  });
 }
 
 /**
@@ -3776,6 +4185,8 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
       _sanitizeSheetCell(it.description || '')
     ]);
   });
+
+  invalidateSheetServiceCaches();
 
   return items.length;
 }
@@ -4141,8 +4552,8 @@ function _matchOrderTiming(orderDate, orderDayOfWeek, queryDate, queryDayOfWeek)
 function addOrder(orderData) {
   var now = new Date();
   var orderId = 'ORD_' + now.getTime() + '_' + Math.floor(Math.random() * 1000);
-  var timestamp = now.toISOString();
-  var date = orderData.date || now.toISOString().slice(0, 10);
+  var timestamp = _formatTaipeiTimestamp(now);
+  var date = orderData.date || timestamp.slice(0, 10);
   var dayOfWeek = orderData.dayOfWeek || '週一';
   var quantity = Number(orderData.quantity) || 1;
   var price = Number(orderData.price) || 0;
@@ -4206,6 +4617,8 @@ function addOrder(orderData) {
 
   sheet.appendRow(rowData);
 
+  invalidateOrderQueryCaches();
+
   return record;
 }
 
@@ -4221,8 +4634,15 @@ function addOrder(orderData) {
 function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   var effUserId = userId ? getEffectiveUserId(userId, userName, userName) : '';
 
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedUserOrders = _readOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || '']);
+    if (cachedUserOrders) {
+      return cachedUserOrders;
+    }
+  }
+
   if (!isGasRuntime()) {
-    return _mockStore.Orders.filter(function (o) {
+    var mockUserOrders = _mockStore.Orders.filter(function (o) {
       if (o.status !== 'ACTIVE') return false;
       if (groupId && o.groupId !== groupId) return false;
 
@@ -4254,6 +4674,10 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
 
       return true;
     });
+    if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+      _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], mockUserOrders);
+    }
+    return mockUserOrders;
   }
 
   var ss = getSpreadsheet();
@@ -4322,6 +4746,10 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
       paid: r[colMap.paid]
     });
   }
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], orders);
+  }
   return orders;
 }
 
@@ -4344,6 +4772,8 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
   if (!hasValidUserId && !hasValidUserName) {
     return 0;
   }
+
+  var orderChanged = false;
 
   var count = 0;
   if (!isGasRuntime()) {
@@ -4374,7 +4804,9 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
 
       o.status = 'CANCELLED';
       count++;
+      orderChanged = true;
     });
+    if (orderChanged) invalidateOrderQueryCaches();
     return count;
   }
 
@@ -4427,7 +4859,9 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
 
     sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
     count++;
+    orderChanged = true;
   }
+  if (orderChanged) invalidateOrderQueryCaches();
   return count;
 }
 
@@ -4441,6 +4875,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
  */
 function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
   var count = 0;
+  var orderChanged = false;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
       if (o.status !== 'ACTIVE') return;
@@ -4450,7 +4885,9 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
 
       o.status = 'CANCELLED';
       count++;
+      orderChanged = true;
     });
+    if (orderChanged) invalidateOrderQueryCaches();
     return count;
   }
 
@@ -4480,8 +4917,10 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     if (!itemName || rItem.indexOf(itemName) !== -1) {
       sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
       count++;
+      orderChanged = true;
     }
   }
+  if (orderChanged) invalidateOrderQueryCaches();
   return count;
 }
 
@@ -4517,11 +4956,22 @@ function findUserInGroup(groupId, query) {
  * Get all active orders for a group on a date or dayOfWeek
  */
 function getGroupOrders(groupId, date, dayOfWeek) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedGroupOrders = _readOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || '']);
+    if (cachedGroupOrders) {
+      return cachedGroupOrders;
+    }
+  }
+
   if (!isGasRuntime()) {
-    return _mockStore.Orders.filter(function (o) {
+    var mockGroupOrders = _mockStore.Orders.filter(function (o) {
       var matchGroup = (!groupId || o.groupId === groupId);
       return matchGroup && _matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek) && o.status === 'ACTIVE';
     });
+    if (_isDevOrderQueryCacheEnabled()) {
+      _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], mockGroupOrders);
+    }
+    return mockGroupOrders;
   }
 
   var ss = getSpreadsheet();
@@ -4565,6 +5015,10 @@ function getGroupOrders(groupId, date, dayOfWeek) {
       paid: r[colMap.paid]
     });
   }
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], orders);
+  }
   return orders;
 }
 
@@ -4572,6 +5026,13 @@ function getGroupOrders(groupId, date, dayOfWeek) {
  * Calculate single-day summary
  */
 function getOrderSummary(groupId, date, dayOfWeek) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedSummary = _readOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || '']);
+    if (cachedSummary) {
+      return cachedSummary;
+    }
+  }
+
   var orders = getGroupOrders(groupId, date, dayOfWeek);
   if (orders.length === 0 && groupId) {
     var allOrders = getGroupOrders('', date, dayOfWeek);
@@ -4620,7 +5081,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
   var itemsList = Object.keys(itemMap).map(function (k) { return itemMap[k]; });
   var usersList = Object.keys(userMap).map(function (k) { return userMap[k]; });
 
-  return {
+  var summary = {
     date: date,
     dayOfWeek: dayOfWeek,
     totalQuantity: totalQuantity,
@@ -4628,12 +5089,24 @@ function getOrderSummary(groupId, date, dayOfWeek) {
     items: itemsList,
     users: usersList
   };
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || ''], summary);
+  }
+  return summary;
 }
 
 /**
  * Calculate full weekly summary (Mon to Fri batch)
  */
 function getWeeklyOrderSummary(groupId) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedWeeklySummary = _readOrderQueryCache('weeklySummary', [groupId || '']);
+    if (cachedWeeklySummary) {
+      return cachedWeeklySummary;
+    }
+  }
+
   var schedule = getWeeklySchedule();
   var days = getDaysOfWeek();
   var daySummaries = [];
@@ -4707,12 +5180,17 @@ function getWeeklyOrderSummary(groupId) {
     return userWeeklyMap[u];
   });
 
-  return {
+  var weeklySummary = {
     daySummaries: daySummaries,
     grandTotalQuantity: grandTotalQuantity,
     grandTotalAmount: grandTotalAmount,
     users: usersList
   };
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('weeklySummary', [groupId || ''], weeklySummary);
+  }
+  return weeklySummary;
 }
 
 /**
@@ -5028,6 +5506,10 @@ function checkTimeZoneAndCurrentTime() {
  * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
  */
 function logToSheet(type, message, detail) {
+  if (!isSheetLoggingEnabled()) {
+    return;
+  }
+
   var detailStr = '';
   if (typeof detail === 'object') {
     try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
@@ -5040,7 +5522,7 @@ function logToSheet(type, message, detail) {
 
   if (!isGasRuntime()) {
     if (!_mockStore.Logs) _mockStore.Logs = [];
-    _mockStore.Logs.push([new Date().toISOString(), safeType, safeMessage, safeDetail]);
+    _mockStore.Logs.push([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
     return;
   }
   try {
@@ -5052,7 +5534,7 @@ function logToSheet(type, message, detail) {
       logSheet.appendRow(['Timestamp', 'Type', 'Message', 'Detail']);
       logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
     }
-    logSheet.appendRow([new Date().toISOString(), safeType, safeMessage, safeDetail]);
+    logSheet.appendRow([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
   } catch (e) {}
 }
 
@@ -5720,6 +6202,9 @@ function addSpecialOrder(orderData) {
   g.checkTimeZoneAndCurrentTime = checkTimeZoneAndCurrentTime;
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
+  g.resetSheetServiceRuntimeCache = resetSheetServiceRuntimeCache;
+  g.invalidateSheetServiceCaches = invalidateSheetServiceCaches;
+  g.isSheetLoggingEnabled = isSheetLoggingEnabled;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._matchOrderTiming = _matchOrderTiming;
   g.normalizeDayOfWeek = normalizeDayOfWeek;
@@ -5784,6 +6269,9 @@ function addSpecialOrder(orderData) {
       migrateToHashedUserIds: migrateToHashedUserIds,
       checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
+      resetSheetServiceRuntimeCache: resetSheetServiceRuntimeCache,
+      invalidateSheetServiceCaches: invalidateSheetServiceCaches,
+      isSheetLoggingEnabled: isSheetLoggingEnabled,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
       _matchOrderTiming: _matchOrderTiming,
       normalizeDayOfWeek: normalizeDayOfWeek,
@@ -7285,6 +7773,125 @@ function _translateHelper(key, params, locale) {
   return key;
 }
 
+var _flexStaticTextCache = {
+  help: {},
+  menu: {}
+};
+
+function _isFlexStaticCacheEnabled() {
+  return (typeof isDevFlexStaticCacheMode === 'function') && isDevFlexStaticCacheMode();
+}
+
+function _getFlexStaticCacheService() {
+  if (typeof CacheService === 'undefined') return null;
+  try {
+    return CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _getFlexStaticCacheKey(scope, parts) {
+  var keyParts = [scope, _resolveLocale(parts && parts.locale)];
+  if (parts && parts.sourceCodeUrl) keyParts.push(String(parts.sourceCodeUrl));
+  if (parts && parts.userLocaleActive !== undefined) keyParts.push(parts.userLocaleActive ? '1' : '0');
+  return keyParts.join('|');
+}
+
+function _getCachedFlexStaticData(scope, parts, builder) {
+  if (!_isFlexStaticCacheEnabled()) {
+    return builder();
+  }
+
+  var cacheKey = _getFlexStaticCacheKey(scope, parts || {});
+  if (_flexStaticTextCache[scope] && _flexStaticTextCache[scope][cacheKey]) {
+    return _flexStaticTextCache[scope][cacheKey];
+  }
+
+  var cache = _getFlexStaticCacheService();
+  if (cache) {
+    try {
+      var cached = cache.get(cacheKey);
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        _flexStaticTextCache[scope][cacheKey] = parsed;
+        return parsed;
+      }
+    } catch (e) {}
+  }
+
+  var value = builder();
+  _flexStaticTextCache[scope][cacheKey] = value;
+
+  if (cache) {
+    try {
+      cache.put(cacheKey, JSON.stringify(value), 21600);
+    } catch (e) {}
+  }
+
+  return value;
+}
+
+function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
+  return _getCachedFlexStaticData('help', {
+    locale: locale,
+    sourceCodeUrl: sourceCodeUrl,
+    userLocaleActive: userLocaleActive
+  }, function () {
+    var commands = [
+      { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_children.title', {}, locale), desc: _translateHelper('help.cmd_children.desc', {}, locale), cmd: _translateHelper('help.cmd_children.cmd', {}, locale), btnText: _translateHelper('help.cmd_children.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_cancel.title', {}, locale), desc: _translateHelper('help.cmd_cancel.desc', {}, locale), cmd: _translateHelper('help.cmd_cancel.cmd', {}, locale), btnText: _translateHelper('help.cmd_cancel.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) }
+    ];
+
+    if (userLocaleActive) {
+      commands.push({
+        label: _translateHelper('help.cmd_language.title', {}, locale),
+        desc: _translateHelper('help.cmd_language.desc', {}, locale),
+        cmd: _translateHelper('help.cmd_language.cmd', {}, locale),
+        btnText: _translateHelper('help.cmd_language.btn', {}, locale)
+      });
+    }
+
+    return {
+      title: _translateHelper('help.title', {}, locale),
+      commands: commands,
+      tipClick: _translateHelper('help.tip_click', {}, locale),
+      licensePrefix: _translateHelper('help.license', {}, locale),
+      sourceCodeUrl: String(sourceCodeUrl || '').trim()
+    };
+  });
+}
+
+function _getMenuStaticTextBundle(locale) {
+  return _getCachedFlexStaticData('menu', {
+    locale: locale
+  }, function () {
+    return {
+      titleSuffix: _translateHelper('menu.title_suffix', {}, locale),
+      todayTitle: _translateHelper('stats.today_title', {}, locale),
+      noCutoff: _translateHelper('schedule.no_cutoff', {}, locale),
+      cutoffPrefix: _translateHelper('menu.cutoff_prefix', {}, locale),
+      pageIndicator: _translateHelper('menu.page_indicator', {}, locale),
+      noOrders: _translateHelper('stats.no_orders', {}, locale),
+      btnOrder: _translateHelper('menu.btn_order', {}, locale),
+      soldOut: _translateHelper('menu.sold_out', {}, locale),
+      morePagesHint: _translateHelper('menu.more_pages_hint', {}, locale),
+      btnPage: _translateHelper('menu.btn_page', {}, locale),
+      footerHint1: _translateHelper('menu.footer_hint1', {}, locale),
+      footerHint2: _translateHelper('menu.footer_hint2', {}, locale),
+      pageFooter: _translateHelper('menu.page_footer', {}, locale)
+    };
+  });
+}
+
 function _displayDayHelper(sheetDay, locale) {
   var loc = _resolveLocale(locale);
   if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.displayDayOfWeek) {
@@ -7509,6 +8116,7 @@ function _calcOrderTotal(orders) {
  */
 function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale, page, pageSize) {
   var loc = _resolveLocale(locale);
+  var staticText = _getMenuStaticTextBundle(loc);
   var allItems = Array.isArray(menuItems) ? menuItems : [];
   var totalItems = allItems.length;
   var effPageSize = (typeof pageSize === 'number' && pageSize > 0) ? pageSize : 20;
@@ -7521,11 +8129,10 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
 
   var displayDay = dayOfWeek ? _displayDayHelper(dayOfWeek, loc) : '';
   var dayBadge = displayDay ? '【' + displayDay + '】' : '';
-  var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
-  var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
+  var headerTitle = restaurantName ? (restaurantName + staticText.titleSuffix) : staticText.todayTitle;
   var cutoffVal = (cutoffTime && String(cutoffTime).trim() !== '' && String(cutoffTime).trim() !== '無截止時間' && String(cutoffTime).trim() !== '--')
     ? String(cutoffTime).trim()
-    : _translateHelper('schedule.no_cutoff', {}, loc);
+    : staticText.noCutoff;
 
   /* ---- header ---- */
   var headerTexts = [
@@ -7535,7 +8142,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + cutoffVal, {
+    _flexText(staticText.cutoffPrefix + cutoffVal, {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -7566,7 +8173,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   var totalRendered = 0;
 
   if (groups.length === 0) {
-    bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
+    bodyContents.push(_flexText('（' + staticText.noOrders + '）', {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -7622,7 +8229,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
             type: 'button',
             action: {
               type: 'message',
-              label: _translateHelper('menu.btn_order', {}, loc),
+              label: staticText.btnOrder,
               text: orderText
             },
             style: 'primary',
@@ -7631,7 +8238,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
             flex: 2
           };
         } else {
-          var soldOutLabel = _translateHelper('menu.sold_out', {}, loc);
+          var soldOutLabel = staticText.soldOut;
           actionButton = {
             type: 'button',
             action: {
@@ -7667,7 +8274,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
     // Pagination buttons if multiple pages exist
     if (totalPages > 1) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
-      bodyContents.push(_flexText(_translateHelper('menu.more_pages_hint', { total: totalPages }, loc), {
+      bodyContents.push(_flexText(staticText.morePagesHint.replace('{total}', String(totalPages)), {
         size: 'xs',
         weight: 'bold',
         color: FLEX_COLORS.primaryDark,
@@ -7683,7 +8290,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
           type: 'button',
           action: {
             type: 'message',
-            label: _translateHelper('menu.btn_page', { page: p }, loc),
+            label: staticText.btnPage.replace('{page}', String(p)),
             text: pCmd
           },
           style: 'primary',
@@ -7711,8 +8318,8 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   });
 
   /* ---- footer ---- */
-  var footerText1 = _translateHelper('menu.footer_hint1', {}, loc);
-  var footerText2 = _translateHelper('menu.footer_hint2', { day: displayDay ? displayDay + ' ' : '' }, loc);
+  var footerText1 = staticText.footerHint1;
+  var footerText2 = staticText.footerHint2.replace('{day}', displayDay ? displayDay + ' ' : '');
 
   var footerContents = [
     _flexText(footerText1, {
@@ -7730,7 +8337,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   ];
 
   if (totalPages > 1) {
-    footerContents.push(_flexText(_translateHelper('menu.page_footer', { page: curPage, total: totalPages, items: totalItems }, loc), {
+    footerContents.push(_flexText(staticText.pageFooter.replace('{page}', String(curPage)).replace('{total}', String(totalPages)).replace('{items}', String(totalItems)), {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -8599,20 +9206,17 @@ function createHelpFlex(sourceCodeUrl, locale) {
     }
   }
   srcUrl = String(srcUrl || 'https://tinyurl.com/4c92wtee').trim();
-
-  var _translate = function (k, p) {
-    if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t) {
-      return I18nModule.t(k, p, loc);
-    }
-    if (typeof t === 'function') {
-      return t(k, p, loc);
-    }
-    return k;
-  };
+  var userLocaleActive = false;
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
+    userLocaleActive = I18nModule.isUserLocaleEnabled();
+  } else if (typeof isUserLocaleEnabled === 'function') {
+    userLocaleActive = isUserLocaleEnabled();
+  }
+  var staticText = _getHelpStaticTextBundle(loc, srcUrl, userLocaleActive);
 
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText(_translate('help.title'), {
+    _flexText(staticText.title, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -8625,33 +9229,7 @@ function createHelpFlex(sourceCodeUrl, locale) {
   });
 
   /* ---- body: buttonized command list ---- */
-  var commands = [
-    { label: _translate('help.cmd_weekly_schedule.title'), desc: _translate('help.cmd_weekly_schedule.desc'), cmd: _translate('help.cmd_weekly_schedule.cmd'), btnText: _translate('help.cmd_weekly_schedule.btn') },
-    { label: _translate('help.cmd_today_menu.title'), desc: _translate('help.cmd_today_menu.desc'), cmd: _translate('help.cmd_today_menu.cmd'), btnText: _translate('help.cmd_today_menu.btn') },
-    { label: _translate('help.cmd_children.title'), desc: _translate('help.cmd_children.desc'), cmd: _translate('help.cmd_children.cmd'), btnText: _translate('help.cmd_children.btn') },
-    { label: _translate('help.cmd_my_today.title'), desc: _translate('help.cmd_my_today.desc'), cmd: _translate('help.cmd_my_today.cmd'), btnText: _translate('help.cmd_my_today.btn') },
-    { label: _translate('help.cmd_my_weekly.title'), desc: _translate('help.cmd_my_weekly.desc'), cmd: _translate('help.cmd_my_weekly.cmd'), btnText: _translate('help.cmd_my_weekly.btn') },
-    { label: _translate('help.cmd_cancel.title'), desc: _translate('help.cmd_cancel.desc'), cmd: _translate('help.cmd_cancel.cmd'), btnText: _translate('help.cmd_cancel.btn') },
-    { label: _translate('help.cmd_weekly_stats.title'), desc: _translate('help.cmd_weekly_stats.desc'), cmd: _translate('help.cmd_weekly_stats.cmd'), btnText: _translate('help.cmd_weekly_stats.btn') },
-    { label: _translate('help.cmd_today_stats.title'), desc: _translate('help.cmd_today_stats.desc'), cmd: _translate('help.cmd_today_stats.cmd'), btnText: _translate('help.cmd_today_stats.btn') },
-    { label: _translate('help.cmd_close.title'), desc: _translate('help.cmd_close.desc'), cmd: _translate('help.cmd_close.cmd'), btnText: _translate('help.cmd_close.btn') },
-    { label: _translate('help.cmd_special.title'), desc: _translate('help.cmd_special.desc'), cmd: _translate('help.cmd_special.cmd'), btnText: _translate('help.cmd_special.btn') }
-  ];
-
-  var userLocaleActive = false;
-  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
-    userLocaleActive = I18nModule.isUserLocaleEnabled();
-  } else if (typeof isUserLocaleEnabled === 'function') {
-    userLocaleActive = isUserLocaleEnabled();
-  }
-  if (userLocaleActive) {
-    commands.push({
-      label: _translate('help.cmd_language.title'),
-      desc: _translate('help.cmd_language.desc'),
-      cmd: _translate('help.cmd_language.cmd'),
-      btnText: _translate('help.cmd_language.btn')
-    });
-  }
+  var commands = staticText.commands;
 
   var bodyContents = [];
   commands.forEach(function (cmd, i) {
@@ -8703,13 +9281,13 @@ function createHelpFlex(sourceCodeUrl, locale) {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText(_translate('help.tip_click'), {
+    _flexText(staticText.tipClick, {
       size: 'xs',
       weight: 'bold',
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText(_translate('help.license') + srcUrl, {
+    _flexText(staticText.licensePrefix + srcUrl, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -11076,6 +11654,49 @@ function handleTextMessage(event) {
     return fallbackRegex;
   };
 
+  var _isDevOrderPreviewTrigger = function (rawText) {
+    if (!(typeof isDevOrderPreviewMode === 'function' && isDevOrderPreviewMode())) {
+      return false;
+    }
+
+    var previewText = String(rawText || '').trim();
+    if (!previewText) {
+      return false;
+    }
+
+    var previewPatterns = [
+      /^(?:\/?)(?:我的本週訂單|本週訂單)$/i,
+      /^(?:\/?)(?:我的訂單|查詢訂單|查單)$/i,
+      /^(?:\/?)(?:取消餐點|取消)(?:\s+餐點)?$/i,
+      /^(?:\/?)(?:取消我的|取消)\s+.+$/i,
+      /^(?:\/?)(?:本週統計|梯次統計)$/i,
+      /^(?:\/?)(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i,
+      /^(?:\/?)(?:今日統計|本日統計|統計)$/i,
+      /^(?:\/?)(?:結單|本週結單|今日結單)$/i,
+      /^(?:\/?)(?:確認取消全體(?:\s*(?:週[一二三四五六日天]|今日))?|確認取消今日全部)$/i,
+      /^(?:\/?)(?:確認取消所有未截止(?:預約)?訂單|確認取消全體未截止預約(?:訂單)?)$/i,
+      /^(?:\/?)(?:取消(?:當日|今日|全體今日)所有餐點|取消全體\s*(?:週[一二三四五六日天]|今日)?|取消當日全部)$/i,
+      /^(?:\/?)(?:取消所有未截止(?:預約)?訂單|取消全體\s*未截止預約訂單|取消全體預約)$/i,
+      /^(?:\/?)(?:取消\s*(?:全部|全部訂單|所有訂單))$/i
+    ];
+
+    for (var i = 0; i < previewPatterns.length; i++) {
+      if (previewPatterns[i].test(previewText)) {
+        return true;
+      }
+    }
+
+    if (typeof parseOrderText === 'function' && parseOrderText(previewText).length > 0) {
+      return true;
+    }
+
+    return false;
+  };
+
+  if (_isDevOrderPreviewTrigger(text)) {
+    return LineModule.replyText(replyToken, '🧪 測試模式：已收到訂單相關指令「' + text + '」，暫時略過訂單讀取與處理。');
+  }
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   var helpRegex = _getCmdRegex('cmd.help', /^(幫助|說明|指令|help|\/help)$/i);
 
@@ -12817,8 +13438,71 @@ function doGet(e) {
 /**
  * HTTP POST Handler - LINE Webhook Events
  */
+/**
+ * Check whether all required sheets already exist before skipping full initialization.
+ * This keeps webhook handling fast by avoiding a full initSheets() run on every request.
+ */
+function _hasRequiredSheets() {
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return true;
+  }
+  if (typeof getSpreadsheet !== 'function' || typeof CONFIG === 'undefined' || !CONFIG || !CONFIG.SHEET_NAMES) {
+    return false;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) {
+    return false;
+  }
+
+  var requiredSheets = [
+    CONFIG.SHEET_NAMES.CONFIG,
+    CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE,
+    CONFIG.SHEET_NAMES.MENU,
+    CONFIG.SHEET_NAMES.ORDERS,
+    CONFIG.SHEET_NAMES.SUMMARY,
+    CONFIG.SHEET_NAMES.CHILDREN,
+    CONFIG.SHEET_NAMES.USER_PREFERENCES,
+    CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES,
+    CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS
+  ];
+
+  for (var i = 0; i < requiredSheets.length; i++) {
+    if (!ss.getSheetByName(requiredSheets[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Initialize sheets only when this is the first run or a required sheet is missing.
+ * This preserves auto-repair on first run while reducing normal webhook latency.
+ */
+function ensureSheetsInitialized() {
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return true;
+  }
+  var initFlag = getConfigProperty('SHEETS_INITIALIZED', 'false') === 'true';
+  if (initFlag && _hasRequiredSheets()) {
+    return true;
+  }
+
+  var success = initSheets();
+  if (success && typeof PropertiesService !== 'undefined') {
+    try {
+      PropertiesService.getScriptProperties().setProperty('SHEETS_INITIALIZED', 'true');
+    } catch (e) {}
+  }
+  return success;
+}
+
 function doPost(e) {
   try {
+    if (typeof resetSheetServiceRuntimeCache === 'function') {
+      resetSheetServiceRuntimeCache();
+    }
     if (!e || !e.postData || !e.postData.contents) {
       return _createResponse(200, { message: 'No post data' });
     }
@@ -12856,8 +13540,8 @@ function doPost(e) {
       return _createResponse(200, { status: 'success', message: 'Webhook verified' });
     }
 
-    // Ensure database sheets exist on first run
-    initSheets();
+    // Ensure database sheets exist on first run or when required sheets are missing
+    ensureSheetsInitialized();
 
     // Process all events
     for (var i = 0; i < events.length; i++) {
@@ -12870,7 +13554,7 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
-        if (typeof logToSheet === 'function') {
+        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode())) {
           var safeSrcId = srcId;
           // If source is a direct 1-on-1 user, de-identify using getEffectiveUserId if available
           if (event.source && event.source.type === 'user' && typeof getEffectiveUserId === 'function') {
@@ -13256,6 +13940,11 @@ function testNidinImport(customUrl) {
  */
 function setup() {
   var success = initSheets();
+  if (success && typeof PropertiesService !== 'undefined') {
+    try {
+      PropertiesService.getScriptProperties().setProperty('SHEETS_INITIALIZED', 'true');
+    } catch (e) {}
+  }
   if (typeof Logger !== 'undefined') {
     Logger.log('Setup finished. Sheets initialized: ' + success);
   }

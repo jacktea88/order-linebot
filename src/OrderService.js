@@ -874,6 +874,49 @@ function handleTextMessage(event) {
     return fallbackRegex;
   };
 
+  var _isDevOrderPreviewTrigger = function (rawText) {
+    if (!(typeof isDevOrderPreviewMode === 'function' && isDevOrderPreviewMode())) {
+      return false;
+    }
+
+    var previewText = String(rawText || '').trim();
+    if (!previewText) {
+      return false;
+    }
+
+    var previewPatterns = [
+      /^(?:\/?)(?:我的本週訂單|本週訂單)$/i,
+      /^(?:\/?)(?:我的訂單|查詢訂單|查單)$/i,
+      /^(?:\/?)(?:取消餐點|取消)(?:\s+餐點)?$/i,
+      /^(?:\/?)(?:取消我的|取消)\s+.+$/i,
+      /^(?:\/?)(?:本週統計|梯次統計)$/i,
+      /^(?:\/?)(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i,
+      /^(?:\/?)(?:今日統計|本日統計|統計)$/i,
+      /^(?:\/?)(?:結單|本週結單|今日結單)$/i,
+      /^(?:\/?)(?:確認取消全體(?:\s*(?:週[一二三四五六日天]|今日))?|確認取消今日全部)$/i,
+      /^(?:\/?)(?:確認取消所有未截止(?:預約)?訂單|確認取消全體未截止預約(?:訂單)?)$/i,
+      /^(?:\/?)(?:取消(?:當日|今日|全體今日)所有餐點|取消全體\s*(?:週[一二三四五六日天]|今日)?|取消當日全部)$/i,
+      /^(?:\/?)(?:取消所有未截止(?:預約)?訂單|取消全體\s*未截止預約訂單|取消全體預約)$/i,
+      /^(?:\/?)(?:取消\s*(?:全部|全部訂單|所有訂單))$/i
+    ];
+
+    for (var i = 0; i < previewPatterns.length; i++) {
+      if (previewPatterns[i].test(previewText)) {
+        return true;
+      }
+    }
+
+    if (typeof parseOrderText === 'function' && parseOrderText(previewText).length > 0) {
+      return true;
+    }
+
+    return false;
+  };
+
+  if (_isDevOrderPreviewTrigger(text)) {
+    return LineModule.replyText(replyToken, '🧪 測試模式：已收到訂單相關指令「' + text + '」，暫時略過訂單讀取與處理。');
+  }
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   var helpRegex = _getCmdRegex('cmd.help', /^(幫助|說明|指令|help|\/help)$/i);
 

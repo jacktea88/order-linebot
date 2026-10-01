@@ -65,6 +65,220 @@ var _mockStore = {
   SpecialMenuItems: []
 };
 
+function _formatTaipeiTimestamp(date) {
+  var d = date || new Date();
+  try {
+    if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+      return Utilities.formatDate(d, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+    }
+  } catch (e) {}
+
+  try {
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+      var parts = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).formatToParts(d);
+      var values = {};
+      parts.forEach(function (part) {
+        if (part.type !== 'literal') {
+          values[part.type] = part.value;
+        }
+      });
+      return values.year + '-' + values.month + '-' + values.day + ' ' + values.hour + ':' + values.minute + ':' + values.second;
+    }
+  } catch (e) {}
+
+  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  var twDate = new Date(utc + (3600000 * 8));
+  var y = twDate.getFullYear();
+  var m = ('0' + (twDate.getMonth() + 1)).slice(-2);
+  var day = ('0' + twDate.getDate()).slice(-2);
+  var hh = ('0' + twDate.getHours()).slice(-2);
+  var mm = ('0' + twDate.getMinutes()).slice(-2);
+  var ss = ('0' + twDate.getSeconds()).slice(-2);
+  return y + '-' + m + '-' + day + ' ' + hh + ':' + mm + ':' + ss;
+}
+
+var _sheetServiceRuntimeCache = {
+  configMap: null,
+  weeklySchedule: null,
+  menuRows: null
+};
+
+var _sheetServiceCacheConfig = {
+  configMapTtlSeconds: 60,
+  weeklyScheduleTtlSeconds: 60,
+  menuRowsTtlSeconds: 60
+};
+
+function _getSheetServiceCachePrefix() {
+  if (!isGasRuntime()) return 'sheetsvc:mock';
+  try {
+    var ss = getSpreadsheet();
+    if (ss && typeof ss.getId === 'function') {
+      return 'sheetsvc:' + ss.getId();
+    }
+  } catch (e) {}
+  return 'sheetsvc:default';
+}
+
+function _getSheetServiceScriptCache() {
+  if (!isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getSheetServiceCacheKey(name) {
+  return _getSheetServiceCachePrefix() + ':' + name;
+}
+
+function _readSheetServiceCache(name) {
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getSheetServiceCacheKey(name));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeSheetServiceCache(name, value, ttlSeconds) {
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return;
+  try {
+    cache.put(_getSheetServiceCacheKey(name), JSON.stringify(value), ttlSeconds || 60);
+  } catch (e) {}
+}
+
+function invalidateSheetServiceCaches() {
+  var cache = _getSheetServiceScriptCache();
+  var keys = [
+    _getSheetServiceCacheKey('configMap'),
+    _getSheetServiceCacheKey('weeklySchedule'),
+    _getSheetServiceCacheKey('menuRows')
+  ];
+  if (cache && cache.removeAll) {
+    try {
+      cache.removeAll(keys);
+    } catch (e) {}
+  }
+  resetSheetServiceRuntimeCache();
+}
+
+function isSheetLoggingEnabled() {
+  var value = getConfigProperty('ENABLE_SHEET_LOGS', 'true');
+  return String(value).toLowerCase() === 'true';
+}
+
+function resetSheetServiceRuntimeCache() {
+  _sheetServiceRuntimeCache.configMap = null;
+  _sheetServiceRuntimeCache.weeklySchedule = null;
+  _sheetServiceRuntimeCache.menuRows = null;
+}
+
+var _orderQueryCacheConfig = {
+  ttlSeconds: 60
+};
+
+function _isDevOrderQueryCacheEnabled() {
+  var previewMode = (typeof isDevOrderPreviewMode === 'function') && isDevOrderPreviewMode();
+  var cacheMode = (typeof isDevOrderCacheMode === 'function') && isDevOrderCacheMode();
+  return previewMode && cacheMode;
+}
+
+function _getOrderQueryCacheVersion() {
+  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
+    return '0';
+  }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var current = String(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0').trim();
+    if (!current) current = '0';
+    return current;
+  } catch (e) {
+    return '0';
+  }
+}
+
+function _bumpOrderQueryCacheVersion() {
+  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
+    return '0';
+  }
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var current = parseInt(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0', 10);
+    if (!isFinite(current)) current = 0;
+    var next = String(current + 1);
+    props.setProperty('ORDER_QUERY_CACHE_VERSION', next);
+    return next;
+  } catch (e) {
+    return '0';
+  }
+}
+
+function _getOrderQueryCachePrefix() {
+  var version = _getOrderQueryCacheVersion();
+  return 'orderQuery:v' + version;
+}
+
+function _getOrderQueryScriptCache() {
+  if (!isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getOrderQueryCacheKey(scope, parts) {
+  var keyParts = [scope, _getOrderQueryCachePrefix()];
+  for (var i = 0; i < parts.length; i++) {
+    keyParts.push(String(parts[i] == null ? '' : parts[i]));
+  }
+  return keyParts.join('|');
+}
+
+function _readOrderQueryCache(scope, parts) {
+  if (!_isDevOrderQueryCacheEnabled()) return null;
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getOrderQueryCacheKey(scope, parts));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeOrderQueryCache(scope, parts, value) {
+  if (!_isDevOrderQueryCacheEnabled()) return;
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return;
+  try {
+    cache.put(_getOrderQueryCacheKey(scope, parts), JSON.stringify(value), _orderQueryCacheConfig.ttlSeconds);
+  } catch (e) {}
+}
+
+function invalidateOrderQueryCaches() {
+  if (!isGasRuntime()) {
+    return;
+  }
+  _bumpOrderQueryCacheVersion();
+}
+
 /**
  * Check if running inside Google Apps Script
  */
@@ -384,6 +598,9 @@ function initSheets() {
     }
   } catch (e) {}
 
+  invalidateSheetServiceCaches();
+  invalidateOrderQueryCaches();
+
   return true;
 }
 
@@ -404,15 +621,29 @@ function getConfigValue(key, defaultValue) {
   if (!ss) return defaultValue;
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CONFIG);
   if (!sheet) return defaultValue;
+  if (_sheetServiceRuntimeCache.configMap) {
+    return _sheetServiceRuntimeCache.configMap.hasOwnProperty(targetKey)
+      ? _sheetServiceRuntimeCache.configMap[targetKey]
+      : defaultValue;
+  }
+
+  var cachedConfigMap = _readSheetServiceCache('configMap');
+  if (cachedConfigMap) {
+    _sheetServiceRuntimeCache.configMap = cachedConfigMap;
+    return cachedConfigMap.hasOwnProperty(targetKey) ? cachedConfigMap[targetKey] : defaultValue;
+  }
 
   var data = sheet.getDataRange().getValues();
+  var configMap = {};
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim().toUpperCase() === targetKey) {
-      var val = data[i][1];
-      return val != null ? String(val) : '';
-    }
+    var currentKey = String(data[i][0]).trim().toUpperCase();
+    if (!currentKey) continue;
+    var val = data[i][1];
+    configMap[currentKey] = val != null ? String(val) : '';
   }
-  return defaultValue;
+  _sheetServiceRuntimeCache.configMap = configMap;
+  _writeSheetServiceCache('configMap', configMap, _sheetServiceCacheConfig.configMapTtlSeconds);
+  return configMap.hasOwnProperty(targetKey) ? configMap[targetKey] : defaultValue;
 }
 
 /**
@@ -432,10 +663,12 @@ function setConfigValue(key, value) {
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === key) {
       sheet.getRange(i + 1, 2).setValue(String(value));
+      invalidateSheetServiceCaches();
       return true;
     }
   }
   sheet.appendRow([key, String(value), '']);
+  invalidateSheetServiceCaches();
   return true;
 }
 
@@ -558,6 +791,33 @@ function getWeeklySchedule() {
   if (!ss) return [];
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
   if (!sheet) return [];
+  if (_sheetServiceRuntimeCache.weeklySchedule) {
+    return _sheetServiceRuntimeCache.weeklySchedule.map(function (item) {
+      return {
+        dayOfWeek: item.dayOfWeek,
+        restaurantName: item.restaurantName,
+        cutoffTime: item.cutoffTime,
+        uberEatsUrl: item.uberEatsUrl,
+        notes: item.notes,
+        isActive: item.isActive
+      };
+    });
+  }
+
+  var cachedWeeklySchedule = _readSheetServiceCache('weeklySchedule');
+  if (cachedWeeklySchedule) {
+    _sheetServiceRuntimeCache.weeklySchedule = cachedWeeklySchedule;
+    return cachedWeeklySchedule.map(function (item) {
+      return {
+        dayOfWeek: item.dayOfWeek,
+        restaurantName: item.restaurantName,
+        cutoffTime: item.cutoffTime,
+        uberEatsUrl: item.uberEatsUrl,
+        notes: item.notes,
+        isActive: item.isActive
+      };
+    });
+  }
 
   var rows = sheet.getDataRange().getValues();
   var list = [];
@@ -572,7 +832,18 @@ function getWeeklySchedule() {
       isActive: String(r[5]).toUpperCase() === 'TRUE'
     });
   }
-  return list;
+  _sheetServiceRuntimeCache.weeklySchedule = list;
+  _writeSheetServiceCache('weeklySchedule', list, _sheetServiceCacheConfig.weeklyScheduleTtlSeconds);
+  return list.map(function (item) {
+    return {
+      dayOfWeek: item.dayOfWeek,
+      restaurantName: item.restaurantName,
+      cutoffTime: item.cutoffTime,
+      uberEatsUrl: item.uberEatsUrl,
+      notes: item.notes,
+      isActive: item.isActive
+    };
+  });
 }
 
 /**
@@ -646,11 +917,13 @@ function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl
       if (uberEatsUrl !== undefined) sheet.getRange(j + 1, 4).setValue(uberEatsUrl);
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
       if (isActive !== undefined) sheet.getRange(j + 1, 6).setValue(isActive ? 'TRUE' : 'FALSE');
+      invalidateSheetServiceCaches();
       return true;
     }
   }
   // Append new day
   sheet.appendRow([dayOfWeek, restaurantName || '', effectiveCutoff, uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
+  invalidateSheetServiceCaches();
   return true;
 }
 
@@ -674,30 +947,45 @@ function getMenuItems(dayOfWeek, restaurantName) {
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.MENU);
   if (!sheet) return [];
 
-  var rows = sheet.getDataRange().getValues();
-  var menu = [];
-  for (var i = 1; i < rows.length; i++) {
-    var row = rows[i];
-    var isAvailable = String(row[5]).toUpperCase() === 'TRUE';
-    var itemDay = String(row[0]);
-    var itemRest = String(row[1]);
-
-    var dayMatches = (!dayOfWeek || itemDay === 'ALL' || itemDay === dayOfWeek);
-    var restMatches = restaurantName ? (itemRest === restaurantName) : true;
-
-    if (isAvailable && dayMatches && restMatches) {
-      menu.push({
-        dayOfWeek: itemDay,
-        restaurantName: itemRest,
-        category: String(row[2]),
-        itemName: String(row[3]),
-        price: Number(row[4]) || 0,
-        isAvailable: isAvailable,
-        description: String(row[6] || '')
-      });
+  if (!_sheetServiceRuntimeCache.menuRows) {
+    var cachedMenuRows = _readSheetServiceCache('menuRows');
+    if (cachedMenuRows) {
+      _sheetServiceRuntimeCache.menuRows = cachedMenuRows;
+    } else {
+      var rows = sheet.getDataRange().getValues();
+      var fullMenu = [];
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
+        fullMenu.push({
+          dayOfWeek: String(row[0]),
+          restaurantName: String(row[1]),
+          category: String(row[2]),
+          itemName: String(row[3]),
+          price: Number(row[4]) || 0,
+          isAvailable: String(row[5]).toUpperCase() === 'TRUE',
+          description: String(row[6] || '')
+        });
+      }
+      _sheetServiceRuntimeCache.menuRows = fullMenu;
+      _writeSheetServiceCache('menuRows', fullMenu, _sheetServiceCacheConfig.menuRowsTtlSeconds);
     }
   }
-  return menu;
+
+  return _sheetServiceRuntimeCache.menuRows.filter(function (item) {
+    var dayMatches = (!dayOfWeek || item.dayOfWeek === 'ALL' || item.dayOfWeek === dayOfWeek);
+    var restMatches = restaurantName ? (item.restaurantName === restaurantName) : true;
+    return item.isAvailable && dayMatches && restMatches;
+  }).map(function (item) {
+    return {
+      dayOfWeek: item.dayOfWeek,
+      restaurantName: item.restaurantName,
+      category: item.category,
+      itemName: item.itemName,
+      price: item.price,
+      isAvailable: item.isAvailable,
+      description: item.description
+    };
+  });
 }
 
 /**
@@ -825,6 +1113,8 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
       _sanitizeSheetCell(it.description || '')
     ]);
   });
+
+  invalidateSheetServiceCaches();
 
   return items.length;
 }
@@ -1190,8 +1480,8 @@ function _matchOrderTiming(orderDate, orderDayOfWeek, queryDate, queryDayOfWeek)
 function addOrder(orderData) {
   var now = new Date();
   var orderId = 'ORD_' + now.getTime() + '_' + Math.floor(Math.random() * 1000);
-  var timestamp = now.toISOString();
-  var date = orderData.date || now.toISOString().slice(0, 10);
+  var timestamp = _formatTaipeiTimestamp(now);
+  var date = orderData.date || timestamp.slice(0, 10);
   var dayOfWeek = orderData.dayOfWeek || '週一';
   var quantity = Number(orderData.quantity) || 1;
   var price = Number(orderData.price) || 0;
@@ -1255,6 +1545,8 @@ function addOrder(orderData) {
 
   sheet.appendRow(rowData);
 
+  invalidateOrderQueryCaches();
+
   return record;
 }
 
@@ -1270,8 +1562,15 @@ function addOrder(orderData) {
 function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   var effUserId = userId ? getEffectiveUserId(userId, userName, userName) : '';
 
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedUserOrders = _readOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || '']);
+    if (cachedUserOrders) {
+      return cachedUserOrders;
+    }
+  }
+
   if (!isGasRuntime()) {
-    return _mockStore.Orders.filter(function (o) {
+    var mockUserOrders = _mockStore.Orders.filter(function (o) {
       if (o.status !== 'ACTIVE') return false;
       if (groupId && o.groupId !== groupId) return false;
 
@@ -1303,6 +1602,10 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
 
       return true;
     });
+    if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+      _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], mockUserOrders);
+    }
+    return mockUserOrders;
   }
 
   var ss = getSpreadsheet();
@@ -1371,6 +1674,10 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
       paid: r[colMap.paid]
     });
   }
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], orders);
+  }
   return orders;
 }
 
@@ -1393,6 +1700,8 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
   if (!hasValidUserId && !hasValidUserName) {
     return 0;
   }
+
+  var orderChanged = false;
 
   var count = 0;
   if (!isGasRuntime()) {
@@ -1423,7 +1732,9 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
 
       o.status = 'CANCELLED';
       count++;
+      orderChanged = true;
     });
+    if (orderChanged) invalidateOrderQueryCaches();
     return count;
   }
 
@@ -1476,7 +1787,9 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
 
     sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
     count++;
+    orderChanged = true;
   }
+  if (orderChanged) invalidateOrderQueryCaches();
   return count;
 }
 
@@ -1490,6 +1803,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
  */
 function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
   var count = 0;
+  var orderChanged = false;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
       if (o.status !== 'ACTIVE') return;
@@ -1499,7 +1813,9 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
 
       o.status = 'CANCELLED';
       count++;
+      orderChanged = true;
     });
+    if (orderChanged) invalidateOrderQueryCaches();
     return count;
   }
 
@@ -1529,8 +1845,10 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     if (!itemName || rItem.indexOf(itemName) !== -1) {
       sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
       count++;
+      orderChanged = true;
     }
   }
+  if (orderChanged) invalidateOrderQueryCaches();
   return count;
 }
 
@@ -1566,11 +1884,22 @@ function findUserInGroup(groupId, query) {
  * Get all active orders for a group on a date or dayOfWeek
  */
 function getGroupOrders(groupId, date, dayOfWeek) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedGroupOrders = _readOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || '']);
+    if (cachedGroupOrders) {
+      return cachedGroupOrders;
+    }
+  }
+
   if (!isGasRuntime()) {
-    return _mockStore.Orders.filter(function (o) {
+    var mockGroupOrders = _mockStore.Orders.filter(function (o) {
       var matchGroup = (!groupId || o.groupId === groupId);
       return matchGroup && _matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek) && o.status === 'ACTIVE';
     });
+    if (_isDevOrderQueryCacheEnabled()) {
+      _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], mockGroupOrders);
+    }
+    return mockGroupOrders;
   }
 
   var ss = getSpreadsheet();
@@ -1614,6 +1943,10 @@ function getGroupOrders(groupId, date, dayOfWeek) {
       paid: r[colMap.paid]
     });
   }
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], orders);
+  }
   return orders;
 }
 
@@ -1621,6 +1954,13 @@ function getGroupOrders(groupId, date, dayOfWeek) {
  * Calculate single-day summary
  */
 function getOrderSummary(groupId, date, dayOfWeek) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedSummary = _readOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || '']);
+    if (cachedSummary) {
+      return cachedSummary;
+    }
+  }
+
   var orders = getGroupOrders(groupId, date, dayOfWeek);
   if (orders.length === 0 && groupId) {
     var allOrders = getGroupOrders('', date, dayOfWeek);
@@ -1669,7 +2009,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
   var itemsList = Object.keys(itemMap).map(function (k) { return itemMap[k]; });
   var usersList = Object.keys(userMap).map(function (k) { return userMap[k]; });
 
-  return {
+  var summary = {
     date: date,
     dayOfWeek: dayOfWeek,
     totalQuantity: totalQuantity,
@@ -1677,12 +2017,24 @@ function getOrderSummary(groupId, date, dayOfWeek) {
     items: itemsList,
     users: usersList
   };
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || ''], summary);
+  }
+  return summary;
 }
 
 /**
  * Calculate full weekly summary (Mon to Fri batch)
  */
 function getWeeklyOrderSummary(groupId) {
+  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    var cachedWeeklySummary = _readOrderQueryCache('weeklySummary', [groupId || '']);
+    if (cachedWeeklySummary) {
+      return cachedWeeklySummary;
+    }
+  }
+
   var schedule = getWeeklySchedule();
   var days = getDaysOfWeek();
   var daySummaries = [];
@@ -1756,12 +2108,17 @@ function getWeeklyOrderSummary(groupId) {
     return userWeeklyMap[u];
   });
 
-  return {
+  var weeklySummary = {
     daySummaries: daySummaries,
     grandTotalQuantity: grandTotalQuantity,
     grandTotalAmount: grandTotalAmount,
     users: usersList
   };
+
+  if (_isDevOrderQueryCacheEnabled()) {
+    _writeOrderQueryCache('weeklySummary', [groupId || ''], weeklySummary);
+  }
+  return weeklySummary;
 }
 
 /**
@@ -2077,6 +2434,10 @@ function checkTimeZoneAndCurrentTime() {
  * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
  */
 function logToSheet(type, message, detail) {
+  if (!isSheetLoggingEnabled()) {
+    return;
+  }
+
   var detailStr = '';
   if (typeof detail === 'object') {
     try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
@@ -2089,7 +2450,7 @@ function logToSheet(type, message, detail) {
 
   if (!isGasRuntime()) {
     if (!_mockStore.Logs) _mockStore.Logs = [];
-    _mockStore.Logs.push([new Date().toISOString(), safeType, safeMessage, safeDetail]);
+    _mockStore.Logs.push([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
     return;
   }
   try {
@@ -2101,7 +2462,7 @@ function logToSheet(type, message, detail) {
       logSheet.appendRow(['Timestamp', 'Type', 'Message', 'Detail']);
       logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
     }
-    logSheet.appendRow([new Date().toISOString(), safeType, safeMessage, safeDetail]);
+    logSheet.appendRow([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
   } catch (e) {}
 }
 
@@ -2769,6 +3130,9 @@ function addSpecialOrder(orderData) {
   g.checkTimeZoneAndCurrentTime = checkTimeZoneAndCurrentTime;
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
+  g.resetSheetServiceRuntimeCache = resetSheetServiceRuntimeCache;
+  g.invalidateSheetServiceCaches = invalidateSheetServiceCaches;
+  g.isSheetLoggingEnabled = isSheetLoggingEnabled;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._matchOrderTiming = _matchOrderTiming;
   g.normalizeDayOfWeek = normalizeDayOfWeek;
@@ -2833,6 +3197,9 @@ function addSpecialOrder(orderData) {
       migrateToHashedUserIds: migrateToHashedUserIds,
       checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
+      resetSheetServiceRuntimeCache: resetSheetServiceRuntimeCache,
+      invalidateSheetServiceCaches: invalidateSheetServiceCaches,
+      isSheetLoggingEnabled: isSheetLoggingEnabled,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
       _matchOrderTiming: _matchOrderTiming,
       normalizeDayOfWeek: normalizeDayOfWeek,

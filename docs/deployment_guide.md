@@ -73,6 +73,7 @@
    - 稍後貼入 Google Apps Script 產生的網址，並將 **Use webhook** 切換為開啟。
 2. 找到 **LINE Official Account features** 區塊，點選 **Edit** 開啟後台設定：
    - **回應模式**：選擇 **Bot (聊天機器人)**。
+   - ![1790847347994](image/deployment_guide/1790847347994.png)
    - **自動回應訊息 (Auto-response)**：務必切換為 **停用 (Disabled)**（避免每次群組成員點餐跳出官方罐頭回覆）。
    - **Webhooks**：切換為 **啟用 (Enabled)**。
    - **加入聊天室 (Chat room and group chats)**：勾選 **允許加入群組與多人聊天室 (Allow)**。
@@ -193,6 +194,8 @@
    - 開啟 **Use webhook** 開關。
 3. 點擊 **Verify** 按鈕：
    - 本專案已實作驗證探針極速回應（< 100ms），點擊 Verify 將立即出現綠色 **Success**，不再發生 Verify 逾時！
+4. 回應設定：
+   1. ![1790847187635](image/deployment_guide/1790847187635.png)
 
 ---
 

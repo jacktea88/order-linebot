@@ -135,6 +135,113 @@ function getConfigProperty(key, defaultValue) {
   return defaultValue;
 }
 
+/**
+ * isDevFastMode — Fast-path flag for local testing and development.
+ * When enabled, the bot skips slower integration checks such as sheet existence scans
+ * and LINE profile lookups so webhook responses feel closer to the final reply path.
+ */
+function isDevFastMode() {
+  return getConfigProperty('DEV_FAST_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevOrderPreviewMode — Test-only flag for order-related commands.
+ * When enabled, order commands return a quick acknowledgement before any order sheet reads/writes.
+ */
+function isDevOrderPreviewMode() {
+  return getConfigProperty('DEV_ORDER_PREVIEW_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevOrderCacheMode — Short-term cache flag for order query/summary paths.
+ * This only makes sense together with DEV_ORDER_PREVIEW_MODE so it stays test-only.
+ */
+function isDevOrderCacheMode() {
+  return getConfigProperty('DEV_ORDER_CACHE_MODE', 'false') === 'true';
+}
+
+/**
+ * isDevFlexStaticCacheMode — Cache fixed help/menu card text bundles.
+ * This only affects static translated strings and does not cache dynamic menu data.
+ */
+function isDevFlexStaticCacheMode() {
+  return getConfigProperty('DEV_FLEX_STATIC_CACHE_MODE', 'false') === 'true';
+}
+
+/**
+ * _maskScriptPropertyValue — Hide sensitive values while still showing enough context for debugging.
+ * @param {string} key
+ * @param {string} value
+ * @returns {string}
+ */
+function _maskScriptPropertyValue(key, value) {
+  var text = (value === null || value === undefined) ? '' : String(value);
+  if (!text) return '';
+  if (!key) return text;
+
+  if (/(token|secret|password|passwd|api[_-]?key|hash[_-]?salt|salt)/i.test(String(key))) {
+    if (text.length <= 8) {
+      return '***';
+    }
+    return text.slice(0, 4) + '***' + text.slice(-4);
+  }
+
+  return text;
+}
+
+/**
+ * showScriptPropertiesDiagnostics — Log and return script properties for debugging.
+ * Sensitive values are masked automatically. When `keys` is omitted, all script properties are shown.
+ * @param {Array<string>} [keys]
+ * @returns {Object<string,string>}
+ */
+function showScriptPropertiesDiagnostics(keys) {
+  var result = {};
+  var props = {};
+
+  try {
+    if (typeof PropertiesService !== 'undefined') {
+      props = PropertiesService.getScriptProperties().getProperties() || {};
+    }
+  } catch (e) {
+    props = {};
+  }
+
+  var targetKeys = (Array.isArray(keys) && keys.length > 0)
+    ? keys
+    : Object.keys(props);
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🔎 Script Properties Diagnostics Start');
+  }
+  if (typeof console !== 'undefined') {
+    console.log('🔎 Script Properties Diagnostics Start');
+  }
+
+  targetKeys.forEach(function (key) {
+    var rawValue = props.hasOwnProperty(key) ? props[key] : getConfigProperty(key, '');
+    var maskedValue = _maskScriptPropertyValue(key, rawValue);
+    result[key] = maskedValue;
+
+    var line = key + ' = ' + maskedValue;
+    if (typeof Logger !== 'undefined') {
+      Logger.log(line);
+    }
+    if (typeof console !== 'undefined') {
+      console.log(line);
+    }
+  });
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🔎 Script Properties Diagnostics End');
+  }
+  if (typeof console !== 'undefined') {
+    console.log('🔎 Script Properties Diagnostics End');
+  }
+
+  return result;
+}
+
 // Dual-Environment Export (GAS + Node.js)
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -144,11 +251,21 @@ function getConfigProperty(key, defaultValue) {
 
   g.CONFIG = CONFIG;
   g.getConfigProperty = getConfigProperty;
+  g.isDevFastMode = isDevFastMode;
+  g.isDevOrderPreviewMode = isDevOrderPreviewMode;
+  g.isDevOrderCacheMode = isDevOrderCacheMode;
+  g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
+  g.showScriptPropertiesDiagnostics = showScriptPropertiesDiagnostics;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       CONFIG: CONFIG,
-      getConfigProperty: getConfigProperty
+      getConfigProperty: getConfigProperty,
+      isDevFastMode: isDevFastMode,
+      isDevOrderPreviewMode: isDevOrderPreviewMode,
+      isDevOrderCacheMode: isDevOrderCacheMode,
+      isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
+      showScriptPropertiesDiagnostics: showScriptPropertiesDiagnostics
     };
   }
 })();

@@ -339,8 +339,71 @@ function doGet(e) {
 /**
  * HTTP POST Handler - LINE Webhook Events
  */
+/**
+ * Check whether all required sheets already exist before skipping full initialization.
+ * This keeps webhook handling fast by avoiding a full initSheets() run on every request.
+ */
+function _hasRequiredSheets() {
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return true;
+  }
+  if (typeof getSpreadsheet !== 'function' || typeof CONFIG === 'undefined' || !CONFIG || !CONFIG.SHEET_NAMES) {
+    return false;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) {
+    return false;
+  }
+
+  var requiredSheets = [
+    CONFIG.SHEET_NAMES.CONFIG,
+    CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE,
+    CONFIG.SHEET_NAMES.MENU,
+    CONFIG.SHEET_NAMES.ORDERS,
+    CONFIG.SHEET_NAMES.SUMMARY,
+    CONFIG.SHEET_NAMES.CHILDREN,
+    CONFIG.SHEET_NAMES.USER_PREFERENCES,
+    CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES,
+    CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS
+  ];
+
+  for (var i = 0; i < requiredSheets.length; i++) {
+    if (!ss.getSheetByName(requiredSheets[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Initialize sheets only when this is the first run or a required sheet is missing.
+ * This preserves auto-repair on first run while reducing normal webhook latency.
+ */
+function ensureSheetsInitialized() {
+  if (typeof isDevFastMode === 'function' && isDevFastMode()) {
+    return true;
+  }
+  var initFlag = getConfigProperty('SHEETS_INITIALIZED', 'false') === 'true';
+  if (initFlag && _hasRequiredSheets()) {
+    return true;
+  }
+
+  var success = initSheets();
+  if (success && typeof PropertiesService !== 'undefined') {
+    try {
+      PropertiesService.getScriptProperties().setProperty('SHEETS_INITIALIZED', 'true');
+    } catch (e) {}
+  }
+  return success;
+}
+
 function doPost(e) {
   try {
+    if (typeof resetSheetServiceRuntimeCache === 'function') {
+      resetSheetServiceRuntimeCache();
+    }
     if (!e || !e.postData || !e.postData.contents) {
       return _createResponse(200, { message: 'No post data' });
     }
@@ -378,8 +441,8 @@ function doPost(e) {
       return _createResponse(200, { status: 'success', message: 'Webhook verified' });
     }
 
-    // Ensure database sheets exist on first run
-    initSheets();
+    // Ensure database sheets exist on first run or when required sheets are missing
+    ensureSheetsInitialized();
 
     // Process all events
     for (var i = 0; i < events.length; i++) {
@@ -392,7 +455,7 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
-        if (typeof logToSheet === 'function') {
+        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode())) {
           var safeSrcId = srcId;
           // If source is a direct 1-on-1 user, de-identify using getEffectiveUserId if available
           if (event.source && event.source.type === 'user' && typeof getEffectiveUserId === 'function') {
@@ -778,6 +841,11 @@ function testNidinImport(customUrl) {
  */
 function setup() {
   var success = initSheets();
+  if (success && typeof PropertiesService !== 'undefined') {
+    try {
+      PropertiesService.getScriptProperties().setProperty('SHEETS_INITIALIZED', 'true');
+    } catch (e) {}
+  }
   if (typeof Logger !== 'undefined') {
     Logger.log('Setup finished. Sheets initialized: ' + success);
   }
