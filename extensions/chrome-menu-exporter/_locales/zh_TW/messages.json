@@ -1,0 +1,194 @@
+{
+  "extensionName": {
+    "message": "便當點餐小幫手 - 菜單擷取工具",
+    "description": "The name of the extension."
+  },
+  "extensionDescription": {
+    "message": "一鍵擷取 Uber Eats、foodpanda 與你訂 (Nidin) 店家菜單，快速匯出至 Google 試算表格式",
+    "description": "The description of the extension."
+  },
+  "actionTitle": {
+    "message": "擷取店家菜單",
+    "description": "The action button tooltip."
+  },
+  "popupTitle": {
+    "message": "便當小幫手 菜單擷取器",
+    "description": "Header title of popup."
+  },
+  "popupSubtitle": {
+    "message": "支援 Uber Eats / foodpanda / 你訂",
+    "description": "Header subtitle of popup."
+  },
+  "detecting": {
+    "message": "檢測中...",
+    "description": "Status text while detecting platform."
+  },
+  "unsupportedPage": {
+    "message": "未支援頁面",
+    "description": "Badge text for unsupported pages."
+  },
+  "storeNameLabel": {
+    "message": "店家名稱：",
+    "description": "Label for store name input."
+  },
+  "storeNamePlaceholder": {
+    "message": "自動偵測店家名稱...",
+    "description": "Placeholder for store name input."
+  },
+  "targetDayLabel": {
+    "message": "排程星期（可選）：",
+    "description": "Label for target day selection."
+  },
+  "dayUnspecified": {
+    "message": "不指定 (ALL)",
+    "description": "Unspecified day option."
+  },
+  "dayMon": {
+    "message": "週一",
+    "description": "Monday option."
+  },
+  "dayTue": {
+    "message": "週二",
+    "description": "Tuesday option."
+  },
+  "dayWed": {
+    "message": "週三",
+    "description": "Wednesday option."
+  },
+  "dayThu": {
+    "message": "週四",
+    "description": "Thursday option."
+  },
+  "dayFri": {
+    "message": "週五",
+    "description": "Friday option."
+  },
+  "daySat": {
+    "message": "週六",
+    "description": "Saturday option."
+  },
+  "daySun": {
+    "message": "週日",
+    "description": "Sunday option."
+  },
+  "fetchMenuBtn": {
+    "message": "🚀 擷取菜單",
+    "description": "Button to trigger menu extraction."
+  },
+  "fetchingBtn": {
+    "message": "⏳ 擷取中...",
+    "description": "Button text while fetching."
+  },
+  "refetchBtn": {
+    "message": "🚀 重新擷取",
+    "description": "Button text after initial fetch."
+  },
+  "itemsUnit": {
+    "message": "道餐點",
+    "description": "Unit label for item count."
+  },
+  "categoriesUnit": {
+    "message": "個分類",
+    "description": "Unit label for category count."
+  },
+  "copyMenuTsvBtn": {
+    "message": "📋 複製 Menu 格式 (7欄)",
+    "description": "Button to copy TSV for Menu tab."
+  },
+  "copyCustomTsvBtn": {
+    "message": "📋 複製自訂餐廳格式 (5欄)",
+    "description": "Button to copy TSV for custom restaurant tab."
+  },
+  "downloadTsvBtn": {
+    "message": "💾 下載 TSV 檔案",
+    "description": "Button to download TSV file."
+  },
+  "copyJsonBtn": {
+    "message": "📋 複製 JSON",
+    "description": "Button to copy JSON to clipboard."
+  },
+  "tipGuide": {
+    "message": "💡 <b>操作指南：</b>點擊「複製 Menu 格式」後，切換至 Google 試算表 <code>Menu</code> 頁籤，點選最下方空白列第一格按 <b>Ctrl+V</b> (或 Cmd+V) 即可一鍵貼上！若使用自訂餐廳工作表，請複製 5 欄格式。",
+    "description": "Tip guiding user how to paste."
+  },
+  "previewTitle": {
+    "message": "餐點預覽（前 10 筆）：",
+    "description": "Title above preview table."
+  },
+  "thDay": {
+    "message": "星期",
+    "description": "Table header for day."
+  },
+  "thRestaurant": {
+    "message": "店家名稱",
+    "description": "Table header for restaurant."
+  },
+  "thCategory": {
+    "message": "分類",
+    "description": "Table header for category."
+  },
+  "thItem": {
+    "message": "餐點名稱",
+    "description": "Table header for item name."
+  },
+  "thPrice": {
+    "message": "價格",
+    "description": "Table header for price."
+  },
+  "thAvailable": {
+    "message": "是否供應",
+    "description": "Table header for available flag."
+  },
+  "thDescription": {
+    "message": "描述",
+    "description": "Table header for description."
+  },
+  "unsupportedTitle": {
+    "message": "⚠️ 目前頁面非支援的店家菜單網址",
+    "description": "Unsupported prompt title."
+  },
+  "unsupportedDesc": {
+    "message": "請在 Chrome 中開啟以下平台的店家菜單頁面後再點開本套件：",
+    "description": "Unsupported prompt description."
+  },
+  "successFetch": {
+    "message": "✅ 成功抓取！共取得 <b>$COUNT$</b> 道餐點！",
+    "description": "Success message after extraction.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessMenu": {
+    "message": "📋 <b>已成功複製 $COUNT$ 筆 Menu 格式菜單至剪貼簿！</b><br>請前往 Google 試算表【Menu】分頁，點選最下方空白列第一個儲存格按 <b>Ctrl+V</b> (或 Cmd+V) 貼上！",
+    "description": "Success message for Menu TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessCustom": {
+    "message": "📋 <b>已成功複製 $COUNT$ 筆自訂餐廳格式菜單至剪貼簿！</b><br>請前往 Google 試算表自訂餐廳分頁，點選最下方空白列第一個儲存格按 <b>Ctrl+V</b> (或 Cmd+V) 貼上！",
+    "description": "Success message for Custom Restaurant TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessJson": {
+    "message": "📋 <b>已成功複製 JSON 格式至剪貼簿！</b>",
+    "description": "Success message for JSON copy."
+  },
+  "errorFetch": {
+    "message": "❌ 擷取失敗：$ERROR$",
+    "description": "Error message when fetch fails.",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  }
+}

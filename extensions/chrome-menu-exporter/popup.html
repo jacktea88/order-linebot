@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>菜單擷取工具</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <span class="logo-icon">🍱</span>
+        <div>
+          <h1 class="title" data-i18n="popupTitle">便當小幫手 菜單擷取器</h1>
+          <p class="subtitle" data-i18n="popupSubtitle">支援 Uber Eats / foodpanda / 你訂</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <select id="langSelect" class="lang-select" title="Language / 語言">
+          <option value="zh_TW">繁體中文</option>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+        </select>
+        <span id="platformBadge" class="badge badge-gray" data-i18n="detecting">檢測中...</span>
+      </div>
+    </header>
+
+    <!-- Store Info & Settings -->
+    <section class="card">
+      <div class="form-group">
+        <label for="storeNameInput" data-i18n="storeNameLabel">店家名稱：</label>
+        <input type="text" id="storeNameInput" data-i18n-placeholder="storeNamePlaceholder" placeholder="自動偵測店家名稱...">
+      </div>
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="targetDaySelect" data-i18n="targetDayLabel">排程星期（可選）：</label>
+          <select id="targetDaySelect">
+            <option value="" data-i18n="dayUnspecified">不指定 (ALL)</option>
+            <option value="週一" data-i18n="dayMon">週一</option>
+            <option value="週二" data-i18n="dayTue">週二</option>
+            <option value="週三" data-i18n="dayWed">週三</option>
+            <option value="週四" data-i18n="dayThu">週四</option>
+            <option value="週五" data-i18n="dayFri">週五</option>
+            <option value="週六" data-i18n="daySat">週六</option>
+            <option value="週日" data-i18n="daySun">週日</option>
+          </select>
+        </div>
+        <div class="form-group half action-container">
+          <label>&nbsp;</label>
+          <button id="fetchBtn" class="btn btn-primary">
+            <span id="fetchBtnText" data-i18n="fetchMenuBtn">🚀 擷取菜單</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Message / Status Alert -->
+    <div id="statusAlert" class="alert hidden"></div>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="card hidden">
+      <div class="result-header">
+        <div class="stat-badge">
+          <span class="stat-count" id="itemCount">0</span>
+          <span class="stat-label" data-i18n="itemsUnit">道餐點</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-count" id="categoryCount">0</span>
+          <span class="stat-label" data-i18n="categoriesUnit">個分類</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons (2-Column Grid) -->
+      <div class="button-grid">
+        <button id="copyMenuTsvBtn" class="btn btn-success" data-i18n="copyMenuTsvBtn">
+          📋 複製 Menu 格式 (7欄)
+        </button>
+        <button id="copyCustomTsvBtn" class="btn btn-secondary" data-i18n="copyCustomTsvBtn">
+          📋 複製自訂餐廳格式 (5欄)
+        </button>
+        <button id="downloadTsvBtn" class="btn btn-secondary" data-i18n="downloadTsvBtn">
+          💾 下載 TSV 檔案
+        </button>
+        <button id="copyJsonBtn" class="btn btn-secondary" data-i18n="copyJsonBtn">
+          📋 複製 JSON
+        </button>
+      </div>
+
+      <div class="tip-box" id="tipBox" data-i18n="tipGuide">
+        💡 <b>操作指南：</b>點擊「複製 Menu 格式」後，切換至 Google 試算表 <code>Menu</code> 頁籤，點選最下方空白列第一格按 <b>Ctrl+V</b> (或 Cmd+V) 即可一鍵貼上！若使用自訂餐廳工作表，請複製 5 欄格式。
+      </div>
+
+      <!-- Preview Table -->
+      <div class="preview-header">
+        <span class="preview-title" data-i18n="previewTitle">餐點預覽（前 10 筆）：</span>
+        <span id="previewInfo" class="preview-info"></span>
+      </div>
+      <div class="table-wrapper">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th data-i18n="thCategory">分類</th>
+              <th data-i18n="thItem">餐點名稱</th>
+              <th data-i18n="thPrice">價格</th>
+              <th data-i18n="thDescription">描述</th>
+            </tr>
+          </thead>
+          <tbody id="previewTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Unsupported Page Prompt -->
+    <section id="unsupportedSection" class="card hidden">
+      <div class="unsupported-box">
+        <p class="unsupported-title" data-i18n="unsupportedTitle">⚠️ 目前頁面非支援的店家菜單網址</p>
+        <p class="unsupported-desc" data-i18n="unsupportedDesc">請在 Chrome 中開啟以下平台的店家菜單頁面後再點開本套件：</p>
+        <ul class="support-list">
+          <li>🍔 <b>Uber Eats</b>：<code>ubereats.com/tw/store/...</code></li>
+          <li>🐼 <b>foodpanda</b>：<code>foodpanda.com.tw/restaurant/...</code></li>
+          <li>🥤 <b>你訂 (Nidin)</b>：<code>order.nidin.shop/menu/...</code></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

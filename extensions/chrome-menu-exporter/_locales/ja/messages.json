@@ -1,0 +1,194 @@
+{
+  "extensionName": {
+    "message": "弁当注文ボット - メニュー抽出ツール",
+    "description": "The name of the extension."
+  },
+  "extensionDescription": {
+    "message": "Uber Eats、foodpanda、Nidinのメニューをワンクリックで取得し、Googleスプレッドシート形式でエクスポート",
+    "description": "The description of the extension."
+  },
+  "actionTitle": {
+    "message": "メニューを抽出",
+    "description": "The action button tooltip."
+  },
+  "popupTitle": {
+    "message": "メニュー抽出ツール",
+    "description": "Header title of popup."
+  },
+  "popupSubtitle": {
+    "message": "Uber Eats / foodpanda / Nidin に対応",
+    "description": "Header subtitle of popup."
+  },
+  "detecting": {
+    "message": "検出中...",
+    "description": "Status text while detecting platform."
+  },
+  "unsupportedPage": {
+    "message": "未対応ページ",
+    "description": "Badge text for unsupported pages."
+  },
+  "storeNameLabel": {
+    "message": "店舗名：",
+    "description": "Label for store name input."
+  },
+  "storeNamePlaceholder": {
+    "message": "店舗名を自動検出...",
+    "description": "Placeholder for store name input."
+  },
+  "targetDayLabel": {
+    "message": "スケジュール曜日（任意）：",
+    "description": "Label for target day selection."
+  },
+  "dayUnspecified": {
+    "message": "指定なし (ALL)",
+    "description": "Unspecified day option."
+  },
+  "dayMon": {
+    "message": "月曜日 (週一)",
+    "description": "Monday option."
+  },
+  "dayTue": {
+    "message": "火曜日 (週二)",
+    "description": "Tuesday option."
+  },
+  "dayWed": {
+    "message": "水曜日 (週三)",
+    "description": "Wednesday option."
+  },
+  "dayThu": {
+    "message": "木曜日 (週四)",
+    "description": "Thursday option."
+  },
+  "dayFri": {
+    "message": "金曜日 (週五)",
+    "description": "Friday option."
+  },
+  "daySat": {
+    "message": "土曜日 (週六)",
+    "description": "Saturday option."
+  },
+  "daySun": {
+    "message": "日曜日 (週日)",
+    "description": "Sunday option."
+  },
+  "fetchMenuBtn": {
+    "message": "🚀 メニューを取得",
+    "description": "Button to trigger menu extraction."
+  },
+  "fetchingBtn": {
+    "message": "⏳ 取得中...",
+    "description": "Button text while fetching."
+  },
+  "refetchBtn": {
+    "message": "🚀 再取得",
+    "description": "Button text after initial fetch."
+  },
+  "itemsUnit": {
+    "message": "品目",
+    "description": "Unit label for item count."
+  },
+  "categoriesUnit": {
+    "message": "カテゴリー",
+    "description": "Unit label for category count."
+  },
+  "copyMenuTsvBtn": {
+    "message": "📋 Menu形式コピー (7列)",
+    "description": "Button to copy TSV for Menu tab."
+  },
+  "copyCustomTsvBtn": {
+    "message": "📋 カスタム店舗形式コピー (5列)",
+    "description": "Button to copy TSV for custom restaurant tab."
+  },
+  "downloadTsvBtn": {
+    "message": "💾 TSVファイルをダウンロード",
+    "description": "Button to download TSV file."
+  },
+  "copyJsonBtn": {
+    "message": "📋 JSONコピー",
+    "description": "Button to copy JSON to clipboard."
+  },
+  "tipGuide": {
+    "message": "💡 <b>操作ガイド：</b>「Menu形式コピー」をクリック後、Googleスプレッドシートの <code>Menu</code> シートの一番下の空行で <b>Ctrl+V</b> (または Cmd+V) を押すと貼り付けできます！",
+    "description": "Tip guiding user how to paste."
+  },
+  "previewTitle": {
+    "message": "メニュープレビュー（上位10件）：",
+    "description": "Title above preview table."
+  },
+  "thDay": {
+    "message": "曜日",
+    "description": "Table header for day."
+  },
+  "thRestaurant": {
+    "message": "店舗名",
+    "description": "Table header for restaurant."
+  },
+  "thCategory": {
+    "message": "分類",
+    "description": "Table header for category."
+  },
+  "thItem": {
+    "message": "メニュー名",
+    "description": "Table header for item name."
+  },
+  "thPrice": {
+    "message": "価格",
+    "description": "Table header for price."
+  },
+  "thAvailable": {
+    "message": "提供可能",
+    "description": "Table header for available flag."
+  },
+  "thDescription": {
+    "message": "説明",
+    "description": "Table header for description."
+  },
+  "unsupportedTitle": {
+    "message": "⚠️ 未対応のページです",
+    "description": "Unsupported prompt title."
+  },
+  "unsupportedDesc": {
+    "message": "Chromeで対応プラットフォームの店舗メニューページを開いてから再度お試しください：",
+    "description": "Unsupported prompt description."
+  },
+  "successFetch": {
+    "message": "✅ 取得成功！全 <b>$COUNT$</b> 件のメニューを取得しました！",
+    "description": "Success message after extraction.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessMenu": {
+    "message": "📋 <b>$COUNT$ 件のメニュー（Menu形式）をクリップボードにコピーしました！</b><br>Googleスプレッドシートの【Menu】シートで <b>Ctrl+V</b> (または Cmd+V) で貼り付けてください！",
+    "description": "Success message for Menu TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessCustom": {
+    "message": "📋 <b>$COUNT$ 件のメニュー（カスタム店舗形式）をクリップボードにコピーしました！</b><br>カスタム店舗シートで <b>Ctrl+V</b> (または Cmd+V) で貼り付けてください！",
+    "description": "Success message for Custom Restaurant TSV copy.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "copySuccessJson": {
+    "message": "📋 <b>JSON形式でクリップボードにコピーしました！</b>",
+    "description": "Success message for JSON copy."
+  },
+  "errorFetch": {
+    "message": "❌ 取得失敗：$ERROR$",
+    "description": "Error message when fetch fails.",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  }
+}
