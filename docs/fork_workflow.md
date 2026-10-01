@@ -6,8 +6,8 @@
 
 請先把下面三個網址換成你自己的實際值：
 
-- 原作者 repo：`https://github.com/原作者帳號/原作者專案.git`
-- 你的 fork repo：`https://github.com/你的帳號/你的fork專案.git`
+- 原作者 repo：`https://github.com/macpaul/order-linebot.git`
+- 你的 fork repo：`https://github.com/jacktea88/order-linebot.git`
 - 主分支名稱：`main` 或 `master`
 
 如果你不確定主分支名稱，先執行 `git branch` 看目前分支名稱。
@@ -17,7 +17,7 @@
 如果你還沒把 fork clone 到本機，先執行：
 
 ```bash
-git clone https://github.com/你的帳號/你的fork專案.git
+git clone https://github.com/jacktea88/order-linebot.git
 cd LineBotGas
 ```
 
@@ -30,14 +30,14 @@ git remote -v
 如果 `origin` 已經是你的 fork，直接新增原作者遠端：
 
 ```bash
-git remote add upstream https://github.com/原作者帳號/原作者專案.git
+git remote add upstream https://github.com/macpaul/order-linebot.git
 ```
 
 如果你當初是直接 clone 原作者 repo，之後才改成 fork 流程，則改成：
 
 ```bash
 git remote rename origin upstream
-git remote add origin https://github.com/你的帳號/你的fork專案.git
+git remote add origin https://github.com/jacktea88/order-linebot.git
 ```
 
 抓取所有遠端資訊：
@@ -53,7 +53,7 @@ git fetch --all --prune
 ```bash
 git checkout main
 git pull origin main
-git checkout -b feature/你的功能名稱
+git checkout -b special-order
 ```
 
 開發完成後提交：
@@ -66,7 +66,7 @@ git commit -m "你的修改說明"
 推到你自己的 fork：
 
 ```bash
-git push origin feature/你的功能名稱
+git push origin special-order
 ```
 
 接著到 GitHub 上，從你的 fork 分支開 Pull Request 到原作者 repo。
@@ -129,16 +129,16 @@ git log --oneline --decorate -n 10
 把下面內容中的網址換掉即可使用：
 
 ```bash
-git clone https://github.com/你的帳號/你的fork專案.git
+git clone https://github.com/jacktea88/order-linebot.git
 cd LineBotGas
-git remote add upstream https://github.com/原作者帳號/原作者專案.git
+git remote add upstream https://github.com/macpaul/order-linebot.git
 git fetch --all --prune
 
 git checkout main
 git pull origin main
-git checkout -b feature/你的功能名稱
+git checkout -b special-order
 # 開發、提交後
-git push origin feature/你的功能名稱
+git push origin special-order
 
 # 同步原作者更新
 git fetch upstream
@@ -157,18 +157,18 @@ flowchart TD
 	B --> C[git fetch --all --prune]
 	C --> D[git checkout main]
 	D --> E[git pull origin main]
-	E --> F[git checkout -b feature/你的功能名稱]
+	E --> F[git checkout -b special-order]
 	F --> G[git add / git commit]
-	G --> H[git push origin feature/你的功能名稱]
+	G --> H[git push origin special-order]
 
 	I[git fetch upstream] --> J[git checkout main]
 	J --> K[git merge upstream/main]
 	K --> L[git push origin main]
 
-	L --> M[git checkout feature/你的功能名稱]
+	L --> M[git checkout special-order]
 	M --> N[git merge main]
 
-	L --> O[git checkout feature/你的功能名稱]
+	L --> O[git checkout special-order]
 	O --> P[git rebase main]
 ```
 
@@ -184,25 +184,25 @@ flowchart TD
 
 下面這份範例以這個專案為例，假設：
 
-- 你的 fork repo：`https://github.com/你的帳號/LineBotGas.git`
-- 原作者 repo：`https://github.com/原作者帳號/LineBotGas.git`
+- 你的 fork repo：`https://github.com/jacktea88/order-linebot.git`
+- 原作者 repo：`https://github.com/macpaul/order-linebot.git`
 - 主分支名稱：`main`
 
 ```bash
-git clone https://github.com/你的帳號/LineBotGas.git
+git clone https://github.com/jacktea88/order-linebot.git
 cd LineBotGas
 
-git remote add upstream https://github.com/原作者帳號/LineBotGas.git
+git remote add upstream https://github.com/macpaul/order-linebot.git
 git fetch --all --prune
 
 git checkout main
 git pull origin main
-git checkout -b feature/你的功能名稱
+git checkout -b special-order
 
 # 開發完成後
 git add .
 git commit -m "你的修改說明"
-git push origin feature/你的功能名稱
+git push origin special-order
 
 # 之後要同步原作者更新時
 git fetch upstream
@@ -211,7 +211,7 @@ git merge upstream/main
 git push origin main
 
 # 如果某個功能分支也要吃到最新 main
-git checkout feature/你的功能名稱
+git checkout special-order
 git merge main
 ```
 
@@ -221,21 +221,21 @@ git merge main
 
 ```bash
 # 先把 fork 抓到本機
-git clone https://github.com/你的帳號/LineBotGas.git
+git clone https://github.com/jacktea88/order-linebot.git
 cd LineBotGas
 
 # 設定原作者遠端
-git remote add upstream https://github.com/原作者帳號/LineBotGas.git
+git remote add upstream https://github.com/macpaul/order-linebot.git
 git fetch --all --prune
 
 # 平常開發
 git checkout main
 git pull origin main
-git checkout -b feature/你的功能名稱
+git checkout -b special-order
 # ...修改檔案...
 git add .
 git commit -m "你的修改說明"
-git push origin feature/你的功能名稱
+git push origin special-order
 
 # 同步原作者更新
 git fetch upstream
@@ -244,7 +244,7 @@ git merge upstream/main
 git push origin main
 
 # 讓功能分支也吃到最新更新
-git checkout feature/你的功能名稱
+git checkout special-order
 git merge main
 ```
 
