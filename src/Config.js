@@ -28,6 +28,7 @@ var CONFIG = {
     SUMMARY: 'Summary',
     CHILDREN: 'Children',
     USER_PREFERENCES: 'UserPreferences',
+    USER_PROFILES: 'UserProfiles',
     SPECIAL_MENU_DATES: 'SpecialMenuDates',
     SPECIAL_MENU_ITEMS: 'SpecialMenuItems'
   },
@@ -169,6 +170,84 @@ function isDevFlexStaticCacheMode() {
 }
 
 /**
+ * isStepTimingEnabled — Enable lightweight step timing logs for profiling.
+ * When enabled, major webhook steps log elapsed milliseconds to console/Logger.
+ */
+function isStepTimingEnabled() {
+  return getConfigProperty('ENABLE_STEP_TIMING', 'false') === 'true';
+}
+
+var _stepTimingBuffer = [];
+
+function resetStepTimingLogs() {
+  _stepTimingBuffer = [];
+}
+
+function flushStepTimingLogs() {
+  if (!isStepTimingEnabled()) return;
+  if (!_stepTimingBuffer || _stepTimingBuffer.length === 0) return;
+
+  var entries = _stepTimingBuffer.slice();
+  _stepTimingBuffer = [];
+
+  if (typeof appendStepTimingLogs === 'function') {
+    try {
+      appendStepTimingLogs(entries);
+      return;
+    } catch (e) {}
+  }
+
+  if (typeof appendStepTimingLog === 'function') {
+    try {
+      entries.forEach(function (entry) {
+        appendStepTimingLog(entry.label, entry.elapsedMs, entry.detail || '');
+      });
+    } catch (e) {}
+  }
+}
+
+/**
+ * logStepTiming — Log an elapsed duration for a named step.
+ * @param {string} label
+ * @param {number} startMs
+ * @param {Object|string} [meta]
+ */
+function logStepTiming(label, startMs, meta) {
+  if (!isStepTimingEnabled()) return;
+
+  var elapsedMs = Date.now() - Number(startMs || Date.now());
+  var metaText = '';
+  if (meta !== undefined && meta !== null && meta !== '') {
+    if (typeof meta === 'string') {
+      metaText = meta;
+    } else {
+      try {
+        metaText = JSON.stringify(meta);
+      } catch (e) {
+        metaText = String(meta);
+      }
+    }
+  }
+
+  var line = '⏱️ [TIMING] ' + label + ': ' + elapsedMs + ' ms';
+  if (metaText) {
+    line += ' | ' + metaText;
+  }
+
+  if (typeof console !== 'undefined') {
+    console.log(line);
+  }
+  if (typeof Logger !== 'undefined') {
+    Logger.log(line);
+  }
+  _stepTimingBuffer.push({
+    label: String(label || 'STEP'),
+    elapsedMs: elapsedMs,
+    detail: metaText || ''
+  });
+}
+
+/**
  * _maskScriptPropertyValue — Hide sensitive values while still showing enough context for debugging.
  * @param {string} key
  * @param {string} value
@@ -255,6 +334,10 @@ function showScriptPropertiesDiagnostics(keys) {
   g.isDevOrderPreviewMode = isDevOrderPreviewMode;
   g.isDevOrderCacheMode = isDevOrderCacheMode;
   g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
+  g.isStepTimingEnabled = isStepTimingEnabled;
+  g.logStepTiming = logStepTiming;
+  g.resetStepTimingLogs = resetStepTimingLogs;
+  g.flushStepTimingLogs = flushStepTimingLogs;
   g.showScriptPropertiesDiagnostics = showScriptPropertiesDiagnostics;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -265,6 +348,10 @@ function showScriptPropertiesDiagnostics(keys) {
       isDevOrderPreviewMode: isDevOrderPreviewMode,
       isDevOrderCacheMode: isDevOrderCacheMode,
       isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
+      isStepTimingEnabled: isStepTimingEnabled,
+      logStepTiming: logStepTiming,
+      resetStepTimingLogs: resetStepTimingLogs,
+      flushStepTimingLogs: flushStepTimingLogs,
       showScriptPropertiesDiagnostics: showScriptPropertiesDiagnostics
     };
   }

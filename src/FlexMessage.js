@@ -863,6 +863,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
 function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
+  var startedAt = Date.now();
   var orders = userOrders || [];
   var total = _calcOrderTotal(orders);
   var isWeekly = options && options.isWeekly !== undefined ? !!options.isWeekly : true;
@@ -1043,13 +1044,21 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     backgroundColor: FLEX_COLORS.background
   });
 
-  return {
+  var flexResult = {
     type: 'bubble',
     size: 'giga',
     header: header,
     body: body,
     footer: footer
   };
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('FlexMessage.createOrderReceiptFlex', startedAt, {
+      isWeekly: isWeekly,
+      orders: orders.length,
+      total: total
+    });
+  }
+  return flexResult;
 }
 
 /**

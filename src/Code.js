@@ -401,6 +401,9 @@ function ensureSheetsInitialized() {
 
 function doPost(e) {
   try {
+    if (typeof resetStepTimingLogs === 'function') {
+      resetStepTimingLogs();
+    }
     if (typeof resetSheetServiceRuntimeCache === 'function') {
       resetSheetServiceRuntimeCache();
     }
@@ -495,6 +498,10 @@ function doPost(e) {
       logToSheet('EXCEPTION', err.message, err.stack);
     }
     return _createResponse(200, { status: 'error', error: err.message });
+  } finally {
+    if (typeof flushStepTimingLogs === 'function') {
+      flushStepTimingLogs();
+    }
   }
 }
 

@@ -917,6 +917,16 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '🧪 測試模式：已收到訂單相關指令「' + text + '」，暫時略過訂單讀取與處理。');
   }
 
+  // Profile cache reset command: 清 profile cache / clear profile cache
+  var clearProfileCacheRegex = /^(?:\/?)(?:清\s*(?:除)?\s*profile\s*cache|clear\s*profile\s*cache|清除\s*頭像\s*快取|清除\s*profile\s*快取)$/i;
+  if (clearProfileCacheRegex.test(text)) {
+    var clearedCount = 0;
+    if (LineModule && typeof LineModule.clearUserProfileCache === 'function') {
+      clearedCount = LineModule.clearUserProfileCache();
+    }
+    return LineModule.replyText(replyToken, '🧹 已清除 profile cache，共 ' + clearedCount + ' 筆。');
+  }
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   var helpRegex = _getCmdRegex('cmd.help', /^(幫助|說明|指令|help|\/help)$/i);
 
@@ -2104,8 +2114,8 @@ function handleTextMessage(event) {
       }
     }
 
-    var addedRecords = [];
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+    var acceptedItems = [];
 
     orderItems.forEach(function (oi) {
       var day = oi.dayOfWeek || todayDay;
@@ -2127,7 +2137,7 @@ function handleTextMessage(event) {
       var menu = SheetModule.getMenuItems(day, dayRest);
       var matched = matchMenuItem(oi.itemName, menu);
 
-      var record = SheetModule.addOrder({
+      acceptedItems.push({
         date: todayDate,
         dayOfWeek: day,
         groupId: groupId,
@@ -2139,32 +2149,116 @@ function handleTextMessage(event) {
         quantity: oi.quantity,
         price: matched.price
       });
-      addedRecords.push(record);
     });
 
-    if (addedRecords.length === 0) {
+    if (acceptedItems.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
     }
 
+    var persistAcceptedOrders = function () {
+      var addedRecords = [];
+      acceptedItems.forEach(function (item) {
+        var record = SheetModule.addOrder(item);
+        addedRecords.push(record);
+      });
+      return addedRecords;
+    };
+
+    var notifyNewOrders = function (records) {
+      var notifyStartedAt = Date.now();
+      var orderSummaryLines = records.map(function (r) {
+        var childTag = r.childName ? ' [' + r.childName + ']' : '';
+        return '• 【' + r.dayOfWeek + '】' + r.itemName + childTag + ' x' + r.quantity + ' ($' + r.subtotal + ')';
+      });
+      var orderTotalAmt = records.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
+      var nowTwOrder = formatAppDate();
+      var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
+      notifyOrganizer(orderPushMsg);
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.notifyNewOrders', notifyStartedAt, {
+          items: records.length,
+          total: orderTotalAmt
+        });
+      }
+    };
+
+    if (isGasRuntime()) {
+      var ackLines = acceptedItems.map(function (item) {
+        var childTag = item.childName ? ' [' + item.childName + ']' : '';
+        return '• 【' + item.dayOfWeek + '】' + item.itemName + childTag + ' x' + item.quantity;
+      });
+      var ackTotal = acceptedItems.reduce(function (sum, item) {
+        return sum + ((Number(item.quantity) || 0) * (Number(item.price) || 0));
+      }, 0);
+      var ackText = '✅ 已收到您的訂單，系統處理中：\n' + ackLines.join('\n') + '\n💰 預估總計：$' + ackTotal + ' 元';
+      var ackReplyStartedAt = Date.now();
+      LineModule.replyText(replyToken, ackText);
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.replyText.ack', ackReplyStartedAt, {
+          items: acceptedItems.length,
+          total: ackTotal
+        });
+      }
+
+      try {
+        var persistStartedAt = Date.now();
+        notifyNewOrders(persistAcceptedOrders());
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('OrderService.persistAcceptedOrders', persistStartedAt, {
+            items: acceptedItems.length
+          });
+        }
+      } catch (err) {
+        var errMsg = (err && err.message) ? err.message : String(err);
+        if (typeof logToSheet === 'function') {
+          logToSheet('ORDER_WRITE_FAILED', 'addOrder failed after reply', {
+            userId: userId,
+            groupId: groupId,
+            userName: userDisplayName,
+            orders: acceptedItems,
+            error: errMsg
+          });
+        }
+        notifyOrganizer('⚠️ 訂單寫入失敗\n👤 訂餐人：' + userDisplayName + '\n🍱 項目：\n' + ackLines.join('\n') + '\n❗ 錯誤：' + errMsg);
+      }
+
+      return null;
+    }
+
+    var persistStartedAt = Date.now();
+    var addedRecords = persistAcceptedOrders();
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.persistAcceptedOrders', persistStartedAt, {
+        items: addedRecords.length
+      });
+    }
+
     // Send push notification to organizer if configured
-    var orderSummaryLines = addedRecords.map(function (r) {
-      var childTag = r.childName ? ' [' + r.childName + ']' : '';
-      return '• 【' + r.dayOfWeek + '】' + r.itemName + childTag + ' x' + r.quantity + ' ($' + r.subtotal + ')';
-    });
-    var orderTotalAmt = addedRecords.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
-    var nowTwOrder = formatAppDate();
-    var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
-    notifyOrganizer(orderPushMsg);
+    notifyNewOrders(addedRecords);
 
     var lastAdded = addedRecords[addedRecords.length - 1];
     var receiptScope = (SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
     var isWeekly = (receiptScope !== 'DAILY' && receiptScope !== 'TODAY' && receiptScope !== '今日');
 
+    var orderLookupStartedAt = Date.now();
     var allMyOrders = isWeekly
       ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName)
       : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek, userDisplayName);
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.getUserOrders', orderLookupStartedAt, {
+        scope: isWeekly ? 'WEEKLY' : 'DAILY',
+        items: addedRecords.length
+      });
+    }
 
+    var receiptStartedAt = Date.now();
     var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly, locale: userLocale });
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.createOrderReceiptFlex', receiptStartedAt, {
+        items: allMyOrders.length,
+        scope: isWeekly ? 'WEEKLY' : 'DAILY'
+      });
+    }
     var altSuffix = isWeekly ? '（本週）' : '';
     var altText;
     if (userLocale === 'zh-TW') {
@@ -2178,6 +2272,7 @@ function handleTextMessage(event) {
         item: lastAdded.itemName
       });
     }
+    var receiptReplyStartedAt = Date.now();
     return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 

@@ -69,9 +69,74 @@ function _isGasRuntime() {
  * @returns {Promise<{statusCode:number, data:Object|null}>}
  */
 var _userProfileCache = {};
+var _userProfileCacheKeys = {};
+
+function _getUserProfileCacheKey(userId, groupId) {
+  return [groupId || 'direct', userId || ''].join(':');
+}
+
+function _getUserProfileScriptCache() {
+  if (!_isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getUserProfileScriptCacheKey(userId, groupId) {
+  return 'userProfile:' + _getUserProfileCacheKey(userId, groupId);
+}
+
+function _readUserProfileScriptCache(userId, groupId) {
+  var cache = _getUserProfileScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getUserProfileScriptCacheKey(userId, groupId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeUserProfileScriptCache(profile) {
+  var cache = _getUserProfileScriptCache();
+  if (!cache || !profile || !profile.userId) return;
+  try {
+    cache.put(_getUserProfileScriptCacheKey(profile.userId, profile.groupId || ''), JSON.stringify(profile), 21600);
+    _userProfileCacheKeys[_getUserProfileCacheKey(profile.userId, profile.groupId || '')] = true;
+  } catch (e) {}
+}
+
+function _clearUserProfileScriptCache() {
+  var cache = _getUserProfileScriptCache();
+  if (!cache || !cache.remove) return;
+  try {
+    var keys = Object.keys(_userProfileCacheKeys || {});
+    for (var i = 0; i < keys.length; i++) {
+      cache.remove('userProfile:' + keys[i]);
+    }
+  } catch (e) {}
+}
+
+function clearUserProfileCache() {
+  var clearedCount = 0;
+  if (_userProfileCache && typeof _userProfileCache === 'object') {
+    clearedCount = Object.keys(_userProfileCache).length;
+    _userProfileCache = {};
+  }
+  _userProfileCacheKeys = {};
+  _clearUserProfileScriptCache();
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🧹 [LINE] Cleared user profile cache: ' + clearedCount + ' entries');
+  }
+  return clearedCount;
+}
 
 function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
+    var startedAt = Date.now();
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
       headers: headers,
@@ -103,10 +168,15 @@ function _httpPostJson(url, headers, payload) {
       }
     }
 
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpPostJson', startedAt, { statusCode: statusCode, url: url });
+    }
+
     return { statusCode: statusCode, data: data };
   }
 
   // Node.js
+  var startedAtNode = Date.now();
   return fetch(url, {
     method: 'POST',
     headers: headers,
@@ -119,6 +189,10 @@ function _httpPostJson(url, headers, payload) {
     });
   }).catch(function () {
     return { statusCode: 500, data: null };
+  }).finally(function () {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpPostJson', startedAtNode, { url: url });
+    }
   });
 }
 
@@ -132,6 +206,7 @@ function _httpPostJson(url, headers, payload) {
 function _httpGetJson(url, headers) {
   if (_isGasRuntime()) {
     try {
+      var startedAt = Date.now();
       var response = UrlFetchApp.fetch(url, {
         method: 'get',
         headers: headers,
@@ -140,6 +215,9 @@ function _httpGetJson(url, headers) {
       var statusCode = parseInt(response.getResponseCode(), 10);
       var data = null;
       try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.httpGetJson', startedAt, { statusCode: statusCode, url: url });
+      }
       return { statusCode: statusCode, data: data };
     } catch (e) {
       return { statusCode: 500, data: null };
@@ -147,6 +225,7 @@ function _httpGetJson(url, headers) {
   }
 
   // Node.js
+  var startedAtNode = Date.now();
   return fetch(url, {
     method: 'GET',
     headers: headers
@@ -158,6 +237,10 @@ function _httpGetJson(url, headers) {
     });
   }).catch(function () {
     return { statusCode: 500, data: null };
+  }).finally(function () {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpGetJson', startedAtNode, { url: url });
+    }
   });
 }
 
@@ -291,21 +374,61 @@ function pushText(to, text) {
  * @returns {Object|Promise<{displayName:string, pictureUrl:string, userId:string}>}
  */
 function getUserProfile(userId, groupId) {
+  var startedAt = Date.now();
   if (!userId) {
-    return { displayName: '成員', pictureUrl: '', userId: '' };
+    var noUserProfile = { displayName: '成員', pictureUrl: '', userId: '' };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, reason: 'no_user_id' });
+    }
+    return noUserProfile;
   }
 
   if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'mock' });
+    }
     return globalThis._mockProfiles[userId];
   }
 
   if (typeof isDevFastMode === 'function' && isDevFastMode()) {
-    return { displayName: '成員', pictureUrl: '', userId: userId };
+    var fastProfile = { displayName: '成員', pictureUrl: '', userId: userId };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'fast_mode' });
+    }
+    return fastProfile;
   }
 
-  var cacheKey = (groupId || 'direct') + ':' + userId;
+  var cacheKey = _getUserProfileCacheKey(userId, groupId);
   if (_userProfileCache[cacheKey]) {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'memory_cache' });
+    }
     return _userProfileCache[cacheKey];
+  }
+
+  if (typeof _readUserProfileScriptCache === 'function') {
+    var scriptCachedProfile = _readUserProfileScriptCache(userId, groupId);
+    if (scriptCachedProfile && scriptCachedProfile.displayName) {
+      _userProfileCache[cacheKey] = scriptCachedProfile;
+      _userProfileCacheKeys[cacheKey] = true;
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'script_cache' });
+      }
+      return scriptCachedProfile;
+    }
+  }
+
+  if (typeof getCachedUserProfile === 'function') {
+    var sheetCachedProfile = getCachedUserProfile(userId, groupId);
+    if (sheetCachedProfile && sheetCachedProfile.displayName) {
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'sheet_cache' });
+      }
+      _userProfileCache[cacheKey] = sheetCachedProfile;
+      _userProfileCacheKeys[cacheKey] = true;
+      _writeUserProfileScriptCache(sheetCachedProfile);
+      return sheetCachedProfile;
+    }
   }
 
   var headers = _authHeaders();
@@ -326,11 +449,22 @@ function getUserProfile(userId, groupId) {
         var profile = {
           displayName: result.data.displayName,
           pictureUrl: result.data.pictureUrl || '',
-          userId: userId
+          userId: userId,
+          groupId: groupId || ''
         };
         _userProfileCache[cacheKey] = profile;
+        _userProfileCacheKeys[cacheKey] = true;
+        _writeUserProfileScriptCache(profile);
+        if (typeof upsertCachedUserProfile === 'function') {
+          try {
+            upsertCachedUserProfile(profile);
+          } catch (e) {}
+        }
         if (typeof Logger !== 'undefined') {
           Logger.log('✔ [LINE] 成功取得使用者名稱: ' + profile.displayName + ' (userId: ' + userId + ')');
+        }
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'gas', source: 'api' });
         }
         return profile;
       }
@@ -338,14 +472,22 @@ function getUserProfile(userId, groupId) {
     if (typeof Logger !== 'undefined') {
       Logger.log('⚠️ [LINE] 無法從 API 取得用戶暱稱，降級使用「成員」');
     }
-    return { displayName: '成員', pictureUrl: '', userId: userId };
+    var fallbackProfile = { displayName: '成員', pictureUrl: '', userId: userId };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'gas', source: 'fallback' });
+    }
+    return fallbackProfile;
   }
 
   // Node.js runtime
   var index = 0;
   function tryNext() {
     if (index >= urls.length) {
-      return Promise.resolve({ displayName: '成員', pictureUrl: '', userId: userId });
+      var fallback = { displayName: '成員', pictureUrl: '', userId: userId };
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'node', source: 'fallback' });
+      }
+      return Promise.resolve(fallback);
     }
     var u = urls[index++];
     return _httpGetJson(u, headers).then(function (res) {
@@ -356,6 +498,11 @@ function getUserProfile(userId, groupId) {
           userId: userId
         };
         _userProfileCache[cacheKey] = p;
+        _userProfileCacheKeys[cacheKey] = true;
+        _writeUserProfileScriptCache(p);
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'node', source: 'api' });
+        }
         return p;
       }
       return tryNext();
@@ -451,6 +598,7 @@ function validateSignature(bodyString, signature, channelSecret) {
   g.pushMessages = pushMessages;
   g.pushText = pushText;
   g.getUserProfile = getUserProfile;
+  g.clearUserProfileCache = clearUserProfileCache;
   g.validateSignature = validateSignature;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -463,6 +611,7 @@ function validateSignature(bodyString, signature, channelSecret) {
       pushText: pushText,
       getUserProfile: getUserProfile,
       validateSignature: validateSignature,
+        clearUserProfileCache: clearUserProfileCache,
       // Internal helpers exposed for Node.js testing.
       _httpPostJson: _httpPostJson,
       _httpGetJson: _httpGetJson,

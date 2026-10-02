@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-10-01T22:54:43+08:00
+ * Automatically generated on: 2026-10-02T22:08:42+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -44,6 +44,7 @@ var CONFIG = {
     SUMMARY: 'Summary',
     CHILDREN: 'Children',
     USER_PREFERENCES: 'UserPreferences',
+    USER_PROFILES: 'UserProfiles',
     SPECIAL_MENU_DATES: 'SpecialMenuDates',
     SPECIAL_MENU_ITEMS: 'SpecialMenuItems'
   },
@@ -185,6 +186,84 @@ function isDevFlexStaticCacheMode() {
 }
 
 /**
+ * isStepTimingEnabled — Enable lightweight step timing logs for profiling.
+ * When enabled, major webhook steps log elapsed milliseconds to console/Logger.
+ */
+function isStepTimingEnabled() {
+  return getConfigProperty('ENABLE_STEP_TIMING', 'false') === 'true';
+}
+
+var _stepTimingBuffer = [];
+
+function resetStepTimingLogs() {
+  _stepTimingBuffer = [];
+}
+
+function flushStepTimingLogs() {
+  if (!isStepTimingEnabled()) return;
+  if (!_stepTimingBuffer || _stepTimingBuffer.length === 0) return;
+
+  var entries = _stepTimingBuffer.slice();
+  _stepTimingBuffer = [];
+
+  if (typeof appendStepTimingLogs === 'function') {
+    try {
+      appendStepTimingLogs(entries);
+      return;
+    } catch (e) {}
+  }
+
+  if (typeof appendStepTimingLog === 'function') {
+    try {
+      entries.forEach(function (entry) {
+        appendStepTimingLog(entry.label, entry.elapsedMs, entry.detail || '');
+      });
+    } catch (e) {}
+  }
+}
+
+/**
+ * logStepTiming — Log an elapsed duration for a named step.
+ * @param {string} label
+ * @param {number} startMs
+ * @param {Object|string} [meta]
+ */
+function logStepTiming(label, startMs, meta) {
+  if (!isStepTimingEnabled()) return;
+
+  var elapsedMs = Date.now() - Number(startMs || Date.now());
+  var metaText = '';
+  if (meta !== undefined && meta !== null && meta !== '') {
+    if (typeof meta === 'string') {
+      metaText = meta;
+    } else {
+      try {
+        metaText = JSON.stringify(meta);
+      } catch (e) {
+        metaText = String(meta);
+      }
+    }
+  }
+
+  var line = '⏱️ [TIMING] ' + label + ': ' + elapsedMs + ' ms';
+  if (metaText) {
+    line += ' | ' + metaText;
+  }
+
+  if (typeof console !== 'undefined') {
+    console.log(line);
+  }
+  if (typeof Logger !== 'undefined') {
+    Logger.log(line);
+  }
+  _stepTimingBuffer.push({
+    label: String(label || 'STEP'),
+    elapsedMs: elapsedMs,
+    detail: metaText || ''
+  });
+}
+
+/**
  * _maskScriptPropertyValue — Hide sensitive values while still showing enough context for debugging.
  * @param {string} key
  * @param {string} value
@@ -271,6 +350,10 @@ function showScriptPropertiesDiagnostics(keys) {
   g.isDevOrderPreviewMode = isDevOrderPreviewMode;
   g.isDevOrderCacheMode = isDevOrderCacheMode;
   g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
+  g.isStepTimingEnabled = isStepTimingEnabled;
+  g.logStepTiming = logStepTiming;
+  g.resetStepTimingLogs = resetStepTimingLogs;
+  g.flushStepTimingLogs = flushStepTimingLogs;
   g.showScriptPropertiesDiagnostics = showScriptPropertiesDiagnostics;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -281,6 +364,10 @@ function showScriptPropertiesDiagnostics(keys) {
       isDevOrderPreviewMode: isDevOrderPreviewMode,
       isDevOrderCacheMode: isDevOrderCacheMode,
       isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
+      isStepTimingEnabled: isStepTimingEnabled,
+      logStepTiming: logStepTiming,
+      resetStepTimingLogs: resetStepTimingLogs,
+      flushStepTimingLogs: flushStepTimingLogs,
       showScriptPropertiesDiagnostics: showScriptPropertiesDiagnostics
     };
   }
@@ -2663,9 +2750,74 @@ function _isGasRuntime() {
  * @returns {Promise<{statusCode:number, data:Object|null}>}
  */
 var _userProfileCache = {};
+var _userProfileCacheKeys = {};
+
+function _getUserProfileCacheKey(userId, groupId) {
+  return [groupId || 'direct', userId || ''].join(':');
+}
+
+function _getUserProfileScriptCache() {
+  if (!_isGasRuntime()) return null;
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      return CacheService.getScriptCache();
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _getUserProfileScriptCacheKey(userId, groupId) {
+  return 'userProfile:' + _getUserProfileCacheKey(userId, groupId);
+}
+
+function _readUserProfileScriptCache(userId, groupId) {
+  var cache = _getUserProfileScriptCache();
+  if (!cache) return null;
+  try {
+    var raw = cache.get(_getUserProfileScriptCacheKey(userId, groupId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _writeUserProfileScriptCache(profile) {
+  var cache = _getUserProfileScriptCache();
+  if (!cache || !profile || !profile.userId) return;
+  try {
+    cache.put(_getUserProfileScriptCacheKey(profile.userId, profile.groupId || ''), JSON.stringify(profile), 21600);
+    _userProfileCacheKeys[_getUserProfileCacheKey(profile.userId, profile.groupId || '')] = true;
+  } catch (e) {}
+}
+
+function _clearUserProfileScriptCache() {
+  var cache = _getUserProfileScriptCache();
+  if (!cache || !cache.remove) return;
+  try {
+    var keys = Object.keys(_userProfileCacheKeys || {});
+    for (var i = 0; i < keys.length; i++) {
+      cache.remove('userProfile:' + keys[i]);
+    }
+  } catch (e) {}
+}
+
+function clearUserProfileCache() {
+  var clearedCount = 0;
+  if (_userProfileCache && typeof _userProfileCache === 'object') {
+    clearedCount = Object.keys(_userProfileCache).length;
+    _userProfileCache = {};
+  }
+  _userProfileCacheKeys = {};
+  _clearUserProfileScriptCache();
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🧹 [LINE] Cleared user profile cache: ' + clearedCount + ' entries');
+  }
+  return clearedCount;
+}
 
 function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
+    var startedAt = Date.now();
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
       headers: headers,
@@ -2697,10 +2849,15 @@ function _httpPostJson(url, headers, payload) {
       }
     }
 
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpPostJson', startedAt, { statusCode: statusCode, url: url });
+    }
+
     return { statusCode: statusCode, data: data };
   }
 
   // Node.js
+  var startedAtNode = Date.now();
   return fetch(url, {
     method: 'POST',
     headers: headers,
@@ -2713,6 +2870,10 @@ function _httpPostJson(url, headers, payload) {
     });
   }).catch(function () {
     return { statusCode: 500, data: null };
+  }).finally(function () {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpPostJson', startedAtNode, { url: url });
+    }
   });
 }
 
@@ -2726,6 +2887,7 @@ function _httpPostJson(url, headers, payload) {
 function _httpGetJson(url, headers) {
   if (_isGasRuntime()) {
     try {
+      var startedAt = Date.now();
       var response = UrlFetchApp.fetch(url, {
         method: 'get',
         headers: headers,
@@ -2734,6 +2896,9 @@ function _httpGetJson(url, headers) {
       var statusCode = parseInt(response.getResponseCode(), 10);
       var data = null;
       try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.httpGetJson', startedAt, { statusCode: statusCode, url: url });
+      }
       return { statusCode: statusCode, data: data };
     } catch (e) {
       return { statusCode: 500, data: null };
@@ -2741,6 +2906,7 @@ function _httpGetJson(url, headers) {
   }
 
   // Node.js
+  var startedAtNode = Date.now();
   return fetch(url, {
     method: 'GET',
     headers: headers
@@ -2752,6 +2918,10 @@ function _httpGetJson(url, headers) {
     });
   }).catch(function () {
     return { statusCode: 500, data: null };
+  }).finally(function () {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.httpGetJson', startedAtNode, { url: url });
+    }
   });
 }
 
@@ -2885,21 +3055,61 @@ function pushText(to, text) {
  * @returns {Object|Promise<{displayName:string, pictureUrl:string, userId:string}>}
  */
 function getUserProfile(userId, groupId) {
+  var startedAt = Date.now();
   if (!userId) {
-    return { displayName: '成員', pictureUrl: '', userId: '' };
+    var noUserProfile = { displayName: '成員', pictureUrl: '', userId: '' };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, reason: 'no_user_id' });
+    }
+    return noUserProfile;
   }
 
   if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'mock' });
+    }
     return globalThis._mockProfiles[userId];
   }
 
   if (typeof isDevFastMode === 'function' && isDevFastMode()) {
-    return { displayName: '成員', pictureUrl: '', userId: userId };
+    var fastProfile = { displayName: '成員', pictureUrl: '', userId: userId };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'fast_mode' });
+    }
+    return fastProfile;
   }
 
-  var cacheKey = (groupId || 'direct') + ':' + userId;
+  var cacheKey = _getUserProfileCacheKey(userId, groupId);
   if (_userProfileCache[cacheKey]) {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'memory_cache' });
+    }
     return _userProfileCache[cacheKey];
+  }
+
+  if (typeof _readUserProfileScriptCache === 'function') {
+    var scriptCachedProfile = _readUserProfileScriptCache(userId, groupId);
+    if (scriptCachedProfile && scriptCachedProfile.displayName) {
+      _userProfileCache[cacheKey] = scriptCachedProfile;
+      _userProfileCacheKeys[cacheKey] = true;
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'script_cache' });
+      }
+      return scriptCachedProfile;
+    }
+  }
+
+  if (typeof getCachedUserProfile === 'function') {
+    var sheetCachedProfile = getCachedUserProfile(userId, groupId);
+    if (sheetCachedProfile && sheetCachedProfile.displayName) {
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: true, runtime: 'sheet_cache' });
+      }
+      _userProfileCache[cacheKey] = sheetCachedProfile;
+      _userProfileCacheKeys[cacheKey] = true;
+      _writeUserProfileScriptCache(sheetCachedProfile);
+      return sheetCachedProfile;
+    }
   }
 
   var headers = _authHeaders();
@@ -2920,11 +3130,22 @@ function getUserProfile(userId, groupId) {
         var profile = {
           displayName: result.data.displayName,
           pictureUrl: result.data.pictureUrl || '',
-          userId: userId
+          userId: userId,
+          groupId: groupId || ''
         };
         _userProfileCache[cacheKey] = profile;
+        _userProfileCacheKeys[cacheKey] = true;
+        _writeUserProfileScriptCache(profile);
+        if (typeof upsertCachedUserProfile === 'function') {
+          try {
+            upsertCachedUserProfile(profile);
+          } catch (e) {}
+        }
         if (typeof Logger !== 'undefined') {
           Logger.log('✔ [LINE] 成功取得使用者名稱: ' + profile.displayName + ' (userId: ' + userId + ')');
+        }
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'gas', source: 'api' });
         }
         return profile;
       }
@@ -2932,14 +3153,22 @@ function getUserProfile(userId, groupId) {
     if (typeof Logger !== 'undefined') {
       Logger.log('⚠️ [LINE] 無法從 API 取得用戶暱稱，降級使用「成員」');
     }
-    return { displayName: '成員', pictureUrl: '', userId: userId };
+    var fallbackProfile = { displayName: '成員', pictureUrl: '', userId: userId };
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'gas', source: 'fallback' });
+    }
+    return fallbackProfile;
   }
 
   // Node.js runtime
   var index = 0;
   function tryNext() {
     if (index >= urls.length) {
-      return Promise.resolve({ displayName: '成員', pictureUrl: '', userId: userId });
+      var fallback = { displayName: '成員', pictureUrl: '', userId: userId };
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'node', source: 'fallback' });
+      }
+      return Promise.resolve(fallback);
     }
     var u = urls[index++];
     return _httpGetJson(u, headers).then(function (res) {
@@ -2950,6 +3179,11 @@ function getUserProfile(userId, groupId) {
           userId: userId
         };
         _userProfileCache[cacheKey] = p;
+        _userProfileCacheKeys[cacheKey] = true;
+        _writeUserProfileScriptCache(p);
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('LineService.getUserProfile', startedAt, { cacheHit: false, runtime: 'node', source: 'api' });
+        }
         return p;
       }
       return tryNext();
@@ -3045,6 +3279,7 @@ function validateSignature(bodyString, signature, channelSecret) {
   g.pushMessages = pushMessages;
   g.pushText = pushText;
   g.getUserProfile = getUserProfile;
+  g.clearUserProfileCache = clearUserProfileCache;
   g.validateSignature = validateSignature;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -3057,6 +3292,7 @@ function validateSignature(bodyString, signature, channelSecret) {
       pushText: pushText,
       getUserProfile: getUserProfile,
       validateSignature: validateSignature,
+        clearUserProfileCache: clearUserProfileCache,
       // Internal helpers exposed for Node.js testing.
       _httpPostJson: _httpPostJson,
       _httpGetJson: _httpGetJson,
@@ -3133,6 +3369,7 @@ var _mockStore = {
   Orders: [],
   Summary: [],
   Children: [],
+  TimingLogs: [],
   SpecialMenuDates: [],
   SpecialMenuItems: []
 };
@@ -3489,6 +3726,10 @@ function initSheets() {
       headers: ['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']
     },
     {
+      name: 'TimingLogs',
+      headers: ['Timestamp', 'Label', 'ElapsedMs', 'Detail']
+    },
+    {
       name: CONFIG.SHEET_NAMES.CHILDREN,
       headers: ['UserId', 'UserName', 'UserNickname', 'ChildName', 'Note', 'CreatedAt', 'UpdatedAt'],
       initData: [
@@ -3500,6 +3741,10 @@ function initSheets() {
     {
       name: (CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PREFERENCES) || 'UserPreferences',
       headers: ['UserId', 'Locale', 'UpdatedAt']
+    },
+    {
+      name: (CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PROFILES) || 'UserProfiles',
+      headers: ['CacheKey', 'UserId', 'GroupId', 'DisplayName', 'PictureUrl', 'UpdatedAt']
     },
     {
       name: CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES,
@@ -3840,6 +4085,125 @@ function getPaymentConfig() {
     bankQrUrl: bankQrUrl,
     hasPaymentInfo: hasPaymentInfo
   };
+}
+
+function _buildUserProfileCacheKey(userId, groupId) {
+  return [groupId || 'direct', userId || ''].join(':');
+}
+
+function _getOrCreateUserProfilesSheet(ss) {
+  if (!ss) return null;
+  var tabName = (CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PROFILES) || 'UserProfiles';
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+    sheet.appendRow(['CacheKey', 'UserId', 'GroupId', 'DisplayName', 'PictureUrl', 'UpdatedAt']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#EFEFEF');
+  }
+  return sheet;
+}
+
+function getCachedUserProfile(userId, groupId) {
+  if (!userId) return null;
+
+  if (!isGasRuntime()) {
+    if (_mockStore.UserProfiles && _mockStore.UserProfiles.length > 0) {
+      var mockKey = _buildUserProfileCacheKey(userId, groupId);
+      for (var i = 0; i < _mockStore.UserProfiles.length; i++) {
+        if (_mockStore.UserProfiles[i].CacheKey === mockKey) {
+          return {
+            displayName: _mockStore.UserProfiles[i].DisplayName,
+            pictureUrl: _mockStore.UserProfiles[i].PictureUrl || '',
+            userId: _mockStore.UserProfiles[i].UserId,
+            groupId: _mockStore.UserProfiles[i].GroupId || ''
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return null;
+  var sheet = _getOrCreateUserProfilesSheet(ss);
+  if (!sheet) return null;
+
+  var cacheKey = _buildUserProfileCacheKey(userId, groupId);
+  var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return null;
+
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][0] || '') === cacheKey) {
+      return {
+        displayName: String(rows[r][3] || ''),
+        pictureUrl: String(rows[r][4] || ''),
+        userId: String(rows[r][1] || userId),
+        groupId: String(rows[r][2] || groupId || '')
+      };
+    }
+  }
+  return null;
+}
+
+function upsertCachedUserProfile(profile) {
+  if (!profile || !profile.userId) return false;
+
+  var cacheKey = _buildUserProfileCacheKey(profile.userId, profile.groupId || '');
+  var nowStr = _formatTaipeiTimestamp(new Date());
+  var rowData = [
+    cacheKey,
+    String(profile.userId || ''),
+    String(profile.groupId || ''),
+    String(profile.displayName || '成員'),
+    String(profile.pictureUrl || ''),
+    nowStr
+  ];
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.UserProfiles) _mockStore.UserProfiles = [];
+    var updated = false;
+    for (var i = 0; i < _mockStore.UserProfiles.length; i++) {
+      if (_mockStore.UserProfiles[i].CacheKey === cacheKey) {
+        _mockStore.UserProfiles[i] = {
+          CacheKey: cacheKey,
+          UserId: String(profile.userId || ''),
+          GroupId: String(profile.groupId || ''),
+          DisplayName: String(profile.displayName || '成員'),
+          PictureUrl: String(profile.pictureUrl || ''),
+          UpdatedAt: nowStr
+        };
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      _mockStore.UserProfiles.push({
+        CacheKey: cacheKey,
+        UserId: String(profile.userId || ''),
+        GroupId: String(profile.groupId || ''),
+        DisplayName: String(profile.displayName || '成員'),
+        PictureUrl: String(profile.pictureUrl || ''),
+        UpdatedAt: nowStr
+      });
+    }
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = _getOrCreateUserProfilesSheet(ss);
+  if (!sheet) return false;
+
+  var rows = sheet.getDataRange().getValues();
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][0] || '') === cacheKey) {
+      sheet.getRange(r + 1, 1, 1, 6).setValues([rowData]);
+      return true;
+    }
+  }
+
+  sheet.appendRow(rowData);
+  return true;
 }
 
 /**
@@ -4550,76 +4914,107 @@ function _matchOrderTiming(orderDate, orderDayOfWeek, queryDate, queryDayOfWeek)
  * Record an order
  */
 function addOrder(orderData) {
-  var now = new Date();
-  var orderId = 'ORD_' + now.getTime() + '_' + Math.floor(Math.random() * 1000);
-  var timestamp = _formatTaipeiTimestamp(now);
-  var date = orderData.date || timestamp.slice(0, 10);
-  var dayOfWeek = orderData.dayOfWeek || '週一';
-  var quantity = Number(orderData.quantity) || 1;
-  var price = Number(orderData.price) || 0;
-  var subtotal = quantity * price;
+  var startedAt = Date.now();
+  try {
+    var now = new Date();
+    var orderId = 'ORD_' + now.getTime() + '_' + Math.floor(Math.random() * 1000);
+    var timestamp = _formatTaipeiTimestamp(now);
+    var date = orderData.date || timestamp.slice(0, 10);
+    var dayOfWeek = orderData.dayOfWeek || '週一';
+    var quantity = Number(orderData.quantity) || 1;
+    var price = Number(orderData.price) || 0;
+    var subtotal = quantity * price;
 
-  var rawUserId = orderData.userId || '';
-  var effUserId = getEffectiveUserId(rawUserId, orderData.userName, orderData.userNickname);
+    var rawUserId = orderData.userId || '';
+    var effUserId = getEffectiveUserId(rawUserId, orderData.userName, orderData.userNickname);
 
-  var record = {
-    orderId: orderId,
-    timestamp: timestamp,
-    date: date,
-    dayOfWeek: dayOfWeek,
-    groupId: orderData.groupId || '',
-    userId: effUserId,
-    userName: orderData.userName || '成員',
-    userNickname: orderData.userNickname || orderData.userName || '成員',
-    childName: (orderData.childName || '').trim(),
-    itemName: orderData.itemName || '',
-    quantity: quantity,
-    price: price,
-    subtotal: subtotal,
-    status: 'ACTIVE',
-    paid: 'UNPAID'
-  };
+    var record = {
+      orderId: orderId,
+      timestamp: timestamp,
+      date: date,
+      dayOfWeek: dayOfWeek,
+      groupId: orderData.groupId || '',
+      userId: effUserId,
+      userName: orderData.userName || '成員',
+      userNickname: orderData.userNickname || orderData.userName || '成員',
+      childName: (orderData.childName || '').trim(),
+      itemName: orderData.itemName || '',
+      quantity: quantity,
+      price: price,
+      subtotal: subtotal,
+      status: 'ACTIVE',
+      paid: 'UNPAID'
+    };
 
-  if (record.childName && record.childName !== '本人' && record.childName !== '自己') {
-    saveChild(effUserId, record.userName, record.userNickname, record.childName);
-  }
+    if (record.childName && record.childName !== '本人' && record.childName !== '自己') {
+      saveChild(effUserId, record.userName, record.userNickname, record.childName);
+    }
 
-  if (!isGasRuntime()) {
-    _mockStore.Orders.push(record);
+    if (!isGasRuntime()) {
+      _mockStore.Orders.push(record);
+      return record;
+    }
+
+    var ss = getSpreadsheet();
+    if (!ss) return record;
+    var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+    if (!sheet) return record;
+
+    var headerStartedAt = Date.now();
+    var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+    var colMap = _getOrderColumnIndexes(headers);
+    var rowData = new Array(headers.length);
+    for (var idx = 0; idx < rowData.length; idx++) rowData[idx] = '';
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.addOrder.headers', headerStartedAt, {
+        itemName: record.itemName,
+        columns: headers.length
+      });
+    }
+
+    if (colMap.orderId !== -1) rowData[colMap.orderId] = record.orderId;
+    if (colMap.timestamp !== -1) rowData[colMap.timestamp] = record.timestamp;
+    if (colMap.date !== -1) rowData[colMap.date] = record.date;
+    if (colMap.dayOfWeek !== -1) rowData[colMap.dayOfWeek] = record.dayOfWeek;
+    if (colMap.groupId !== -1) rowData[colMap.groupId] = record.groupId;
+    if (colMap.userId !== -1) rowData[colMap.userId] = record.userId;
+    if (colMap.userName !== -1) rowData[colMap.userName] = _sanitizeSheetCell(record.userName);
+    if (colMap.userNickname !== -1) rowData[colMap.userNickname] = _sanitizeSheetCell(record.userNickname);
+    if (colMap.childName !== -1) rowData[colMap.childName] = _sanitizeSheetCell(record.childName);
+    if (colMap.itemName !== -1) rowData[colMap.itemName] = _sanitizeSheetCell(record.itemName);
+    if (colMap.quantity !== -1) rowData[colMap.quantity] = record.quantity;
+    if (colMap.price !== -1) rowData[colMap.price] = record.price;
+    if (colMap.subtotal !== -1) rowData[colMap.subtotal] = record.subtotal;
+    if (colMap.status !== -1) rowData[colMap.status] = record.status;
+    if (colMap.paid !== -1) rowData[colMap.paid] = record.paid;
+
+    var appendStartedAt = Date.now();
+    sheet.appendRow(rowData);
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.addOrder.appendRow', appendStartedAt, {
+        itemName: record.itemName,
+        quantity: record.quantity
+      });
+    }
+
+    var invalidateStartedAt = Date.now();
+    invalidateOrderQueryCaches();
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.addOrder.invalidateCache', invalidateStartedAt, {
+        itemName: record.itemName
+      });
+    }
+
     return record;
+  } finally {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.addOrder', startedAt, {
+        itemName: orderData && orderData.itemName ? orderData.itemName : '',
+        dayOfWeek: orderData && orderData.dayOfWeek ? orderData.dayOfWeek : '',
+        quantity: Number(orderData && orderData.quantity) || 0
+      });
+    }
   }
-
-  var ss = getSpreadsheet();
-  if (!ss) return record;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return record;
-
-  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
-  var colMap = _getOrderColumnIndexes(headers);
-  var rowData = new Array(headers.length);
-  for (var idx = 0; idx < rowData.length; idx++) rowData[idx] = '';
-
-  if (colMap.orderId !== -1) rowData[colMap.orderId] = record.orderId;
-  if (colMap.timestamp !== -1) rowData[colMap.timestamp] = record.timestamp;
-  if (colMap.date !== -1) rowData[colMap.date] = record.date;
-  if (colMap.dayOfWeek !== -1) rowData[colMap.dayOfWeek] = record.dayOfWeek;
-  if (colMap.groupId !== -1) rowData[colMap.groupId] = record.groupId;
-  if (colMap.userId !== -1) rowData[colMap.userId] = record.userId;
-  if (colMap.userName !== -1) rowData[colMap.userName] = _sanitizeSheetCell(record.userName);
-  if (colMap.userNickname !== -1) rowData[colMap.userNickname] = _sanitizeSheetCell(record.userNickname);
-  if (colMap.childName !== -1) rowData[colMap.childName] = _sanitizeSheetCell(record.childName);
-  if (colMap.itemName !== -1) rowData[colMap.itemName] = _sanitizeSheetCell(record.itemName);
-  if (colMap.quantity !== -1) rowData[colMap.quantity] = record.quantity;
-  if (colMap.price !== -1) rowData[colMap.price] = record.price;
-  if (colMap.subtotal !== -1) rowData[colMap.subtotal] = record.subtotal;
-  if (colMap.status !== -1) rowData[colMap.status] = record.status;
-  if (colMap.paid !== -1) rowData[colMap.paid] = record.paid;
-
-  sheet.appendRow(rowData);
-
-  invalidateOrderQueryCaches();
-
-  return record;
 }
 
 /**
@@ -5506,7 +5901,11 @@ function checkTimeZoneAndCurrentTime() {
  * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
  */
 function logToSheet(type, message, detail) {
+  var startedAt = Date.now();
   if (!isSheetLoggingEnabled()) {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.logToSheet', startedAt, { enabled: false, type: type || 'INFO' });
+    }
     return;
   }
 
@@ -5523,6 +5922,9 @@ function logToSheet(type, message, detail) {
   if (!isGasRuntime()) {
     if (!_mockStore.Logs) _mockStore.Logs = [];
     _mockStore.Logs.push([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('SheetService.logToSheet', startedAt, { enabled: true, runtime: 'mock', type: safeType });
+    }
     return;
   }
   try {
@@ -5535,6 +5937,87 @@ function logToSheet(type, message, detail) {
       logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
     }
     logSheet.appendRow([_formatTaipeiTimestamp(new Date()), safeType, safeMessage, safeDetail]);
+  } catch (e) {}
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('SheetService.logToSheet', startedAt, { enabled: true, runtime: 'gas', type: safeType });
+  }
+}
+
+/**
+ * appendStepTimingLog — Write a single timing record into the dedicated TimingLogs sheet.
+ * @param {string} label
+ * @param {number} elapsedMs
+ * @param {Object|string} [detail]
+ */
+function appendStepTimingLog(label, elapsedMs, detail) {
+  if (!isStepTimingEnabled()) return;
+
+  var detailStr = '';
+  if (typeof detail === 'object') {
+    try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
+  } else if (detail !== undefined && detail !== null) {
+    detailStr = String(detail);
+  }
+
+  var safeLabel = _sanitizeSheetCell(label || 'STEP');
+  var safeDetail = _sanitizeSheetCell(detailStr);
+  var safeElapsed = Number(elapsedMs);
+  if (!isFinite(safeElapsed) || safeElapsed < 0) safeElapsed = 0;
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.TimingLogs) _mockStore.TimingLogs = [];
+    _mockStore.TimingLogs.push([_formatTaipeiTimestamp(new Date()), safeLabel, safeElapsed, safeDetail]);
+    return;
+  }
+
+  try {
+    var ss = getSpreadsheet();
+    if (!ss) return;
+    var timingSheet = ss.getSheetByName('TimingLogs');
+    if (!timingSheet) {
+      timingSheet = ss.insertSheet('TimingLogs');
+      timingSheet.appendRow(['Timestamp', 'Label', 'ElapsedMs', 'Detail']);
+      timingSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
+    }
+    timingSheet.appendRow([_formatTaipeiTimestamp(new Date()), safeLabel, safeElapsed, safeDetail]);
+  } catch (e) {}
+}
+
+/**
+ * appendStepTimingLogs — Batch write timing records into the dedicated TimingLogs sheet.
+ * @param {Array<{label:string,elapsedMs:number,detail:string}>} entries
+ */
+function appendStepTimingLogs(entries) {
+  if (!isStepTimingEnabled()) return;
+  if (!entries || !entries.length) return;
+
+  var timestamp = _formatTaipeiTimestamp(new Date());
+  var rows = entries.map(function (entry) {
+    var safeLabel = _sanitizeSheetCell((entry && entry.label) || 'STEP');
+    var safeElapsed = Number(entry && entry.elapsedMs);
+    var detail = (entry && entry.detail) || '';
+    var safeDetail = _sanitizeSheetCell(detail);
+    if (!isFinite(safeElapsed) || safeElapsed < 0) safeElapsed = 0;
+    return [timestamp, safeLabel, safeElapsed, safeDetail];
+  });
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.TimingLogs) _mockStore.TimingLogs = [];
+    Array.prototype.push.apply(_mockStore.TimingLogs, rows);
+    return;
+  }
+
+  try {
+    var ss = getSpreadsheet();
+    if (!ss) return;
+    var timingSheet = ss.getSheetByName('TimingLogs');
+    if (!timingSheet) {
+      timingSheet = ss.insertSheet('TimingLogs');
+      timingSheet.appendRow(['Timestamp', 'Label', 'ElapsedMs', 'Detail']);
+      timingSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
+    }
+    var startRow = timingSheet.getLastRow() + 1;
+    timingSheet.getRange(startRow, 1, rows.length, 4).setValues(rows);
   } catch (e) {}
 }
 
@@ -6203,6 +6686,8 @@ function addSpecialOrder(orderData) {
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
   g.resetSheetServiceRuntimeCache = resetSheetServiceRuntimeCache;
+  g.appendStepTimingLog = appendStepTimingLog;
+  g.appendStepTimingLogs = appendStepTimingLogs;
   g.invalidateSheetServiceCaches = invalidateSheetServiceCaches;
   g.isSheetLoggingEnabled = isSheetLoggingEnabled;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
@@ -6270,6 +6755,8 @@ function addSpecialOrder(orderData) {
       checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
       resetSheetServiceRuntimeCache: resetSheetServiceRuntimeCache,
+      appendStepTimingLog: appendStepTimingLog,
+      appendStepTimingLogs: appendStepTimingLogs,
       invalidateSheetServiceCaches: invalidateSheetServiceCaches,
       isSheetLoggingEnabled: isSheetLoggingEnabled,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
@@ -8581,6 +9068,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
 function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
+  var startedAt = Date.now();
   var orders = userOrders || [];
   var total = _calcOrderTotal(orders);
   var isWeekly = options && options.isWeekly !== undefined ? !!options.isWeekly : true;
@@ -8761,13 +9249,21 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     backgroundColor: FLEX_COLORS.background
   });
 
-  return {
+  var flexResult = {
     type: 'bubble',
     size: 'giga',
     header: header,
     body: body,
     footer: footer
   };
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('FlexMessage.createOrderReceiptFlex', startedAt, {
+      isWeekly: isWeekly,
+      orders: orders.length,
+      total: total
+    });
+  }
+  return flexResult;
 }
 
 /**
@@ -11697,6 +12193,16 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '🧪 測試模式：已收到訂單相關指令「' + text + '」，暫時略過訂單讀取與處理。');
   }
 
+  // Profile cache reset command: 清 profile cache / clear profile cache
+  var clearProfileCacheRegex = /^(?:\/?)(?:清\s*(?:除)?\s*profile\s*cache|clear\s*profile\s*cache|清除\s*頭像\s*快取|清除\s*profile\s*快取)$/i;
+  if (clearProfileCacheRegex.test(text)) {
+    var clearedCount = 0;
+    if (LineModule && typeof LineModule.clearUserProfileCache === 'function') {
+      clearedCount = LineModule.clearUserProfileCache();
+    }
+    return LineModule.replyText(replyToken, '🧹 已清除 profile cache，共 ' + clearedCount + ' 筆。');
+  }
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   var helpRegex = _getCmdRegex('cmd.help', /^(幫助|說明|指令|help|\/help)$/i);
 
@@ -12884,8 +13390,8 @@ function handleTextMessage(event) {
       }
     }
 
-    var addedRecords = [];
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+    var acceptedItems = [];
 
     orderItems.forEach(function (oi) {
       var day = oi.dayOfWeek || todayDay;
@@ -12907,7 +13413,7 @@ function handleTextMessage(event) {
       var menu = SheetModule.getMenuItems(day, dayRest);
       var matched = matchMenuItem(oi.itemName, menu);
 
-      var record = SheetModule.addOrder({
+      acceptedItems.push({
         date: todayDate,
         dayOfWeek: day,
         groupId: groupId,
@@ -12919,32 +13425,116 @@ function handleTextMessage(event) {
         quantity: oi.quantity,
         price: matched.price
       });
-      addedRecords.push(record);
     });
 
-    if (addedRecords.length === 0) {
+    if (acceptedItems.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
     }
 
+    var persistAcceptedOrders = function () {
+      var addedRecords = [];
+      acceptedItems.forEach(function (item) {
+        var record = SheetModule.addOrder(item);
+        addedRecords.push(record);
+      });
+      return addedRecords;
+    };
+
+    var notifyNewOrders = function (records) {
+      var notifyStartedAt = Date.now();
+      var orderSummaryLines = records.map(function (r) {
+        var childTag = r.childName ? ' [' + r.childName + ']' : '';
+        return '• 【' + r.dayOfWeek + '】' + r.itemName + childTag + ' x' + r.quantity + ' ($' + r.subtotal + ')';
+      });
+      var orderTotalAmt = records.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
+      var nowTwOrder = formatAppDate();
+      var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
+      notifyOrganizer(orderPushMsg);
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.notifyNewOrders', notifyStartedAt, {
+          items: records.length,
+          total: orderTotalAmt
+        });
+      }
+    };
+
+    if (isGasRuntime()) {
+      var ackLines = acceptedItems.map(function (item) {
+        var childTag = item.childName ? ' [' + item.childName + ']' : '';
+        return '• 【' + item.dayOfWeek + '】' + item.itemName + childTag + ' x' + item.quantity;
+      });
+      var ackTotal = acceptedItems.reduce(function (sum, item) {
+        return sum + ((Number(item.quantity) || 0) * (Number(item.price) || 0));
+      }, 0);
+      var ackText = '✅ 已收到您的訂單，系統處理中：\n' + ackLines.join('\n') + '\n💰 預估總計：$' + ackTotal + ' 元';
+      var ackReplyStartedAt = Date.now();
+      LineModule.replyText(replyToken, ackText);
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.replyText.ack', ackReplyStartedAt, {
+          items: acceptedItems.length,
+          total: ackTotal
+        });
+      }
+
+      try {
+        var persistStartedAt = Date.now();
+        notifyNewOrders(persistAcceptedOrders());
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('OrderService.persistAcceptedOrders', persistStartedAt, {
+            items: acceptedItems.length
+          });
+        }
+      } catch (err) {
+        var errMsg = (err && err.message) ? err.message : String(err);
+        if (typeof logToSheet === 'function') {
+          logToSheet('ORDER_WRITE_FAILED', 'addOrder failed after reply', {
+            userId: userId,
+            groupId: groupId,
+            userName: userDisplayName,
+            orders: acceptedItems,
+            error: errMsg
+          });
+        }
+        notifyOrganizer('⚠️ 訂單寫入失敗\n👤 訂餐人：' + userDisplayName + '\n🍱 項目：\n' + ackLines.join('\n') + '\n❗ 錯誤：' + errMsg);
+      }
+
+      return null;
+    }
+
+    var persistStartedAt = Date.now();
+    var addedRecords = persistAcceptedOrders();
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.persistAcceptedOrders', persistStartedAt, {
+        items: addedRecords.length
+      });
+    }
+
     // Send push notification to organizer if configured
-    var orderSummaryLines = addedRecords.map(function (r) {
-      var childTag = r.childName ? ' [' + r.childName + ']' : '';
-      return '• 【' + r.dayOfWeek + '】' + r.itemName + childTag + ' x' + r.quantity + ' ($' + r.subtotal + ')';
-    });
-    var orderTotalAmt = addedRecords.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
-    var nowTwOrder = formatAppDate();
-    var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
-    notifyOrganizer(orderPushMsg);
+    notifyNewOrders(addedRecords);
 
     var lastAdded = addedRecords[addedRecords.length - 1];
     var receiptScope = (SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
     var isWeekly = (receiptScope !== 'DAILY' && receiptScope !== 'TODAY' && receiptScope !== '今日');
 
+    var orderLookupStartedAt = Date.now();
     var allMyOrders = isWeekly
       ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName)
       : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek, userDisplayName);
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.getUserOrders', orderLookupStartedAt, {
+        scope: isWeekly ? 'WEEKLY' : 'DAILY',
+        items: addedRecords.length
+      });
+    }
 
+    var receiptStartedAt = Date.now();
     var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly, locale: userLocale });
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.createOrderReceiptFlex', receiptStartedAt, {
+        items: allMyOrders.length,
+        scope: isWeekly ? 'WEEKLY' : 'DAILY'
+      });
+    }
     var altSuffix = isWeekly ? '（本週）' : '';
     var altText;
     if (userLocale === 'zh-TW') {
@@ -12958,6 +13548,7 @@ function handleTextMessage(event) {
         item: lastAdded.itemName
       });
     }
+    var receiptReplyStartedAt = Date.now();
     return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 
@@ -13500,6 +14091,9 @@ function ensureSheetsInitialized() {
 
 function doPost(e) {
   try {
+    if (typeof resetStepTimingLogs === 'function') {
+      resetStepTimingLogs();
+    }
     if (typeof resetSheetServiceRuntimeCache === 'function') {
       resetSheetServiceRuntimeCache();
     }
@@ -13594,6 +14188,10 @@ function doPost(e) {
       logToSheet('EXCEPTION', err.message, err.stack);
     }
     return _createResponse(200, { status: 'error', error: err.message });
+  } finally {
+    if (typeof flushStepTimingLogs === 'function') {
+      flushStepTimingLogs();
+    }
   }
 }
 
