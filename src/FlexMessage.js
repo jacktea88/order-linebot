@@ -121,15 +121,17 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
     userLocaleActive: userLocaleActive
   }, function () {
     var commands = [
-      { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
       { label: _translateHelper('help.cmd_children.title', {}, locale), desc: _translateHelper('help.cmd_children.desc', {}, locale), cmd: _translateHelper('help.cmd_children.cmd', {}, locale), btnText: _translateHelper('help.cmd_children.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
       { label: _translateHelper('help.cmd_cancel.title', {}, locale), desc: _translateHelper('help.cmd_cancel.desc', {}, locale), cmd: _translateHelper('help.cmd_cancel.cmd', {}, locale), btnText: _translateHelper('help.cmd_cancel.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_month.title', {}, locale), desc: _translateHelper('help.cmd_my_month.desc', {}, locale), cmd: _translateHelper('help.cmd_my_month.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_month.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_next_month.title', {}, locale), desc: _translateHelper('help.cmd_my_next_month.desc', {}, locale), cmd: _translateHelper('help.cmd_my_next_month.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_next_month.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
       { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) }
     ];
 
@@ -664,20 +666,20 @@ function createSpecialDateListFlex(dates, locale) {
     var statusKey = d.closed ? 'special.status_closed' : 'special.status_open';
     var titleLine = d.eventDate + (d.weekday ? ' (' + d.weekday + ')' : '');
     var left = [
-      _flexText(titleLine, { size: 'sm', weight: 'bold', color: FLEX_COLORS.textPrimary, wrap: true })
+      _flexText(titleLine, { size: 'md', weight: 'bold', color: FLEX_COLORS.textPrimary, wrap: true })
     ];
     if (d.title) {
-      left.push(_flexText(d.title, { size: 'xs', color: FLEX_COLORS.primaryDark, wrap: true, margin: 'xs' }));
+      left.push(_flexText(d.title, { size: 'md', color: FLEX_COLORS.primaryDark, wrap: true, margin: 'xs' }));
     }
     left.push(_flexText(
       _translateHelper('special.cutoff_label', { cutoff: d.cutoffAt }, loc) + ' · ' + _translateHelper(statusKey, {}, loc),
-      { size: 'xxs', color: d.closed ? FLEX_COLORS.danger : FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }
+      { size: 'sm', color: d.closed ? FLEX_COLORS.danger : FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }
     ));
     return _flexBox([
       _flexBox(left, { layout: 'vertical', flex: 4, justifyContent: 'center' }),
       {
         type: 'button',
-        action: { type: 'message', label: _translateHelper('special.btn_view', {}, loc), text: '特餐 ' + d.eventDate },
+        action: { type: 'message', label: _translateHelper('special.btn_view', {}, loc), text: '工作 ' + d.eventDate },
         style: 'primary',
         color: FLEX_COLORS.primary,
         height: 'sm',
@@ -692,7 +694,7 @@ function createSpecialDateListFlex(dates, locale) {
   var body = _flexBox(rows, { layout: 'vertical', paddingAll: 'md', backgroundColor: FLEX_COLORS.surface });
   var footer = _flexBox([
     _flexText(_translateHelper('special.list_hint', {}, loc), {
-      size: 'xxs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
+      size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
     })
   ], { layout: 'vertical', paddingAll: 'sm', backgroundColor: FLEX_COLORS.background });
 
@@ -724,16 +726,16 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
     _flexText('🎉 ' + (info.title || _translateHelper('special.title_list', {}, loc)), {
       size: 'xl', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', wrap: true
     }),
-    _flexText('📅 ' + dateLabel, { size: 'sm', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs' }),
+    _flexText('📅 ' + dateLabel, { size: 'lg', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs' }),
     _flexText(
       _translateHelper('special.cutoff_label', { cutoff: info.cutoffAt }, loc) + '（' +
         _translateHelper(info.closed ? 'special.status_closed' : 'special.status_open', {}, loc) + '）',
-      { size: 'sm', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs', wrap: true }
+      { size: 'lg', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs', wrap: true }
     )
   ];
   if (totalPages > 1) {
     headerTexts.push(_flexText(_translateHelper('special.page_indicator', { page: curPage, total: totalPages }, loc), {
-      size: 'xs', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs'
+      size: 'md', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs'
     }));
   }
   var header = _flexBox(headerTexts, {
@@ -745,14 +747,14 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
   var bodyContents = [];
   if (groups.length === 0) {
     bodyContents.push(_flexText(_translateHelper('special.menu_empty', {}, loc), {
-      size: 'sm', color: FLEX_COLORS.textSecondary, align: 'center', margin: 'lg'
+      size: 'lg', color: FLEX_COLORS.textSecondary, align: 'center', margin: 'lg'
     }));
   }
 
   var rendered = 0;
   groups.forEach(function (group, gi) {
     bodyContents.push(_flexText('【' + group.category + '】', {
-      size: 'md', weight: 'bold', color: FLEX_COLORS.primaryDark, align: 'start', margin: gi === 0 ? 'none' : 'md'
+      size: 'xl', weight: 'bold', color: FLEX_COLORS.primaryDark, align: 'start', margin: gi === 0 ? 'none' : 'md'
     }));
 
     group.items.forEach(function (item) {
@@ -768,16 +770,16 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
 
       var leftBox = [
         _flexText(item.itemName, {
-          size: 'sm', weight: 'bold', wrap: true,
+          size: 'lg', weight: 'bold', wrap: true,
           color: disabled ? FLEX_COLORS.textSecondary : FLEX_COLORS.textPrimary
         }),
-        _flexText(_formatPrice(item.price) + ' · ' + qtyLabel, {
-          size: 'xs', weight: 'bold', margin: 'xs', wrap: true,
+        _flexText(qtyLabel, {
+          size: 'md', weight: 'bold', margin: 'xs', wrap: true,
           color: soldOut ? FLEX_COLORS.danger : (disabled ? FLEX_COLORS.textSecondary : FLEX_COLORS.primaryDark)
         })
       ];
       if (item.description) {
-        leftBox.push(_flexText(item.description, { size: 'xxs', color: FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }));
+        leftBox.push(_flexText(item.description, { size: 'sm', color: FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }));
       }
 
       var button;
@@ -787,7 +789,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
           action: {
             type: 'message',
             label: _translateHelper(soldOut ? 'special.btn_sold_out' : 'special.btn_closed', {}, loc),
-            text: '特餐 ' + info.eventDate
+            text: '工作 ' + info.eventDate
           },
           style: 'secondary',
           height: 'sm',
@@ -799,7 +801,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
           action: {
             type: 'message',
             label: _translateHelper('special.btn_order', {}, loc),
-            text: '特餐 ' + info.eventDate + ' ' + item.itemName + '+1'
+            text: '工作 ' + info.eventDate + ' ' + item.itemName + '+1'
           },
           style: 'primary',
           color: FLEX_COLORS.primary,
@@ -826,7 +828,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
       if (p === curPage) continue;
       pageButtons.push({
         type: 'button',
-        action: { type: 'message', label: _translateHelper('menu.btn_page', { page: p }, loc), text: '特餐 ' + info.eventDate + ' 第' + p + '頁' },
+        action: { type: 'message', label: _translateHelper('menu.btn_page', { page: p }, loc), text: '工作 ' + info.eventDate + ' 第' + p + '頁' },
         style: 'primary',
         color: FLEX_COLORS.primary,
         height: 'sm'
@@ -840,7 +842,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
   var body = _flexBox(bodyContents, { layout: 'vertical', paddingAll: 'md', backgroundColor: FLEX_COLORS.surface });
   var footer = _flexBox([
     _flexText(_translateHelper('special.footer_hint', {}, loc), {
-      size: 'xxs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
+      size: 'sm', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
     })
   ], { layout: 'vertical', paddingAll: 'sm', backgroundColor: FLEX_COLORS.background });
 
@@ -1677,7 +1679,9 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
     var anyDayUnlocked = false;
 
     dayOrder.forEach(function (day, di) {
-      var displayDay = _displayDayHelper(day, loc);
+      var displayDay = (dayMap[day][0] && dayMap[day][0].specialDate)
+        ? '道場工作 ' + dayMap[day][0].specialDate
+        : _displayDayHelper(day, loc);
       var dayItems = dayMap[day];
       var dayLock = locks[day];
       var isDayLocked = dayLock && dayLock.locked;
@@ -1708,8 +1712,10 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
 
       dayItems.forEach(function (it) {
         var childTag = it.childName ? ' [' + it.childName + ']' : '';
-        var cancelCmd = '取消 ' + day + ' ' + (it.childName ? it.childName + ' ' : '') + it.itemName;
-        var itemText = it.itemName + childTag + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
+        var cancelCmd = it.specialDate
+          ? '取消道場工作項目 ' + it.specialDate + ' ' + it.itemName
+          : '取消 ' + day + ' ' + (it.childName ? it.childName + ' ' : '') + it.itemName;
+        var itemText = it.itemName + childTag + (it.quantity > 1 ? ' x' + it.quantity : '');
 
         var actionComponent = isDayLocked
           ? _flexBox([
@@ -1768,8 +1774,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
           type: 'button',
           action: {
             type: 'message',
-            label: _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
-            text: '取消我的 ' + day + ' 全部'
+            label: dayItems[0] && dayItems[0].specialDate ? '取消此日期全部登記' : _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
+            text: dayItems[0] && dayItems[0].specialDate ? '取消道場工作項目 ' + dayItems[0].specialDate + ' 全部' : '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
           height: 'sm',
@@ -2176,7 +2182,7 @@ function createChildrenListFlex(userName, children, locale) {
       margin: 'md'
     });
   } else {
-    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（點餐時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（登記時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -2203,7 +2209,7 @@ function createChildrenListFlex(userName, children, locale) {
     });
 
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    var footerGuide = _translateHelper('children_list.footer', {}, loc) || '💡 點餐方式：\n1. 若僅登記 1 位小孩，點擊菜單「+1 點餐」將自動預設分配；若有多位小孩則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！';
+    var footerGuide = _translateHelper('children_list.footer', {}, loc) || '💡 登記方式：\n1. 若僅登記 1 位道親，點擊工作「+1 登記」將自動預設分配；若有多位道親則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！';
     bodyContents.push(_flexText(footerGuide, {
       size: 'xs',
       color: FLEX_COLORS.primaryDark,

@@ -536,7 +536,7 @@ function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
 
   if (users.length > 0) {
     lines.push('─────────────────');
-    lines.push('👤 每人應付明細與點餐內容：');
+    lines.push('👤 每人應付明細與登記內容：');
     users.forEach(function (u) {
       var userItems = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       lines.push('  • ' + (u.userName || '成員') + '：' + userItems + ' ＝ $' + (u.total || 0) + ' 元');
@@ -642,7 +642,7 @@ function isMenuPageCommand(text) {
     return true;
   }
   // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2", "thực đơn trang 2"
-  if (/(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
+  if (/(?:菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
     return true;
   }
   return false;
@@ -895,7 +895,7 @@ function handleTextMessage(event) {
     var previewPatterns = [
       /^(?:\/?)(?:我的本週訂單|本週訂單)$/i,
       /^(?:\/?)(?:我的訂單|查詢訂單|查單)$/i,
-      /^(?:\/?)(?:取消餐點|取消)(?:\s+餐點)?$/i,
+      /^(?:\/?)(?:取消餐點|取消登記|取消)(?:\s+餐點)?$/i,
       /^(?:\/?)(?:取消我的|取消)\s+.+$/i,
       /^(?:\/?)(?:本週統計|梯次統計)$/i,
       /^(?:\/?)(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i,
@@ -1013,6 +1013,9 @@ function handleTextMessage(event) {
       logStepTiming('OrderService.handleSpecialMenuCommand', specialStartedAt);
     }
     if (specialReply) {
+      if (specialReply.quickReplyItems) {
+        return LineModule.replyQuickReply(replyToken, specialReply.text, specialReply.quickReplyItems);
+      }
       return specialReply.flex
         ? LineModule.replyFlex(replyToken, specialReply.altText, specialReply.flex)
         : LineModule.replyText(replyToken, specialReply.text);
@@ -1020,7 +1023,7 @@ function handleTextMessage(event) {
   }
 
   // 2. WEEKLY SCHEDULE: 本週菜單 / 每週菜單 / 排程 / 本週排程
-  var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/i);
+  var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週工作|每週工作|本週排程|排程|週排程)$/i);
   if (weeklyRegex.test(text)) {
     var schedule = SheetModule.getWeeklySchedule();
     var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule, userLocale);
@@ -1038,7 +1041,7 @@ function handleTextMessage(event) {
     '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六', 'thứ bảy': '週六', 'thứ 7': '週六', 'thu bảy': '週六', 'thu bay': '週六', 'thu 7': '週六',
     '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日', 'chủ nhật': '週日', 'chu nhat': '週日', 'cn': '週日'
   };
-  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
     var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
     var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
@@ -1048,7 +1051,7 @@ function handleTextMessage(event) {
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
     var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
-    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單' + pageSuffix));
+    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 工作' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
@@ -1172,13 +1175,13 @@ function handleTextMessage(event) {
 
     var menuList = SheetModule.getMenuItems(todayDay, restaurant);
     var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList, todayDay);
-    return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
+    return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 工作', menuFlex);
   }
 
   // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X / thực đơn trang X
-  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|今日工作|菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
-  var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
+  var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|工作|今日工作|menu)$/i);
 
   if (menuPageMatch || standalonePageMatch || todayMenuRegex.test(text)) {
     var mMatch = menuPageMatch || standalonePageMatch;
@@ -1188,7 +1191,7 @@ function handleTextMessage(event) {
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
     var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
-    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單' + pageSuffix));
+    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 工作' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, curAltText, curMenuFlex);
   }
 
@@ -1299,6 +1302,61 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, weeklyMsg);
   }
 
+  // 7.5 MY MONTH / NEXT MONTH: 我的本月登記 / 我的次月登記
+  var myMonthRegex = _getCmdRegex('cmd.my_month', /^(?:\/)?我的本月登記$/i);
+  var myNextMonthRegex = _getCmdRegex('cmd.my_next_month', /^(?:\/)?我的次月登記$/i);
+  var mmIsNext = myNextMonthRegex.test(text);
+  if (mmIsNext || myMonthRegex.test(text)) {
+    var mmDateParts = todayDate.split('-');
+    var mmYear = parseInt(mmDateParts[0], 10);
+    var mmMonthNum = parseInt(mmDateParts[1], 10) + (mmIsNext ? 1 : 0);
+    if (mmMonthNum > 12) {
+      mmMonthNum = 1;
+      mmYear += 1;
+    }
+    var mmKey = mmYear + '-' + ('0' + mmMonthNum).slice(-2);
+    var mmScope = _translateMsg(mmIsNext ? 'month.next' : 'month.this');
+    var mmRegular = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName) || [];
+    var mmSpecial = SheetModule.getUserOrders(userId, groupId, null, '特餐', userDisplayName) || [];
+    var mmOrders = mmRegular.concat(mmSpecial).filter(function (o) {
+      return String(o.date || '').slice(0, 7) === mmKey;
+    });
+    if (mmOrders.length === 0) {
+      return LineModule.replyText(replyToken, _translateMsg('month.empty', { scope: mmScope, month: mmKey }));
+    }
+
+    var mmRank = function (o) { return o.date + (o.dayOfWeek === '特餐' ? '|1' : '|0'); };
+    mmOrders.sort(function (a, b) {
+      var ka = mmRank(a);
+      var kb = mmRank(b);
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+
+    var mmLines = [_translateMsg('month.title', { scope: mmScope, month: mmKey })];
+    var mmLastGroup = '';
+    mmOrders.forEach(function (o) {
+      var isSpecialOrder = o.dayOfWeek === '特餐';
+      var groupKey = mmRank(o);
+      if (groupKey !== mmLastGroup) {
+        mmLastGroup = groupKey;
+        var groupLabel = isSpecialOrder ? _translateMsg('month.kind_special') : _displayDay(o.dayOfWeek || '');
+        mmLines.push('');
+        mmLines.push('📅 ' + o.date + (groupLabel ? '（' + groupLabel + '）' : ''));
+      }
+      var mmKidTag = o.childName ? ' [' + o.childName + ']' : '';
+      mmLines.push('  • ' + o.itemName + mmKidTag + ' x' + o.quantity);
+    });
+    mmLines.push('');
+    mmLines.push(_translateMsg('month.total', { count: mmOrders.length }));
+
+    var mmText = mmLines.join('\n');
+    // LINE 文字訊息上限 5000 字
+    if (mmText.length > 4800) {
+      mmText = mmText.slice(0, 4800) + '\n' + _translateMsg('month.truncated');
+    }
+    return LineModule.replyText(replyToken, mmText);
+  }
+
   // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
   var myOrderRegex = _getCmdRegex('cmd.my_order', /^(?:\/)?(?:我的訂單|查詢訂單|查單)$/i);
   if (myOrderRegex.test(text)) {
@@ -1307,7 +1365,7 @@ function handleTextMessage(event) {
       myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
     }
     if (!myOrders || myOrders.length === 0) {
-      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。' : _translateMsg('my_orders.no_today_orders'));
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」登記。' : _translateMsg('my_orders.no_today_orders'));
     }
     var isCutoff = isTodayCutoffPassed(todayDay);
     var statusTag = '';
@@ -1323,7 +1381,7 @@ function handleTextMessage(event) {
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var payTextToday = _formatPaymentText(payInfoToday, userLocale);
     var cutoffNotice = isCutoff
-      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
+      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日登記已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
       : '';
     var msg;
     if (userLocale === 'zh-TW') {
@@ -1343,7 +1401,7 @@ function handleTextMessage(event) {
       kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
     }
     var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles, userLocale);
-    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的小孩與用餐對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的小孩與用餐對象名冊');
+    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的道親與工作對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的道親與工作對象名冊');
     return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
@@ -1351,7 +1409,7 @@ function handleTextMessage(event) {
   var childrenSubmenuRegex = _getCmdRegex('cmd.children_menu', /^(?:\/)?(?:小孩選單|小孩管理|小孩幫助|孩子選單)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
     var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
-    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
+    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 道親與工作對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 道親與工作對象管理選單');
     return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
@@ -1399,12 +1457,12 @@ function handleTextMessage(event) {
     var rawList = setKidsMatch[1].trim();
     var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
     if (kidList.length === 0) {
-      return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的小孩姓名，例如：「設定小孩 大寶, 二寶」');
+      return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的道親姓名，例如：「設定道親 大寶, 二寶」');
     }
     if (SheetModule.setChildren) {
       SheetModule.setChildren(userId, userDisplayName, userDisplayName, kidList);
     }
-    return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
+    return LineModule.replyText(replyToken, '✅ 已為您成功設定道親名冊：' + kidList.join('、') + '！\n💡 下次登記點擊工作上的「+1 登記」按鈕，系統將會自動浮出道親捷徑讓您一秒直選！');
   }
 
   // 8.5.1c STANDALONE ADD KID: 新增小孩 / 加小孩 (無參數時提示引導與快捷按鈕)
@@ -1546,7 +1604,7 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '⚠️ 【' + dayArg + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
     }
     if (dayArg === todayDay && isTodayCutoffPassed(dayArg)) {
-      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+      return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法取消餐點。');
     }
     var cCount = SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, dayArg) : SheetModule.cancelOrder(null, groupId, null, null, dayArg);
     if (cCount > 0) {
@@ -1600,7 +1658,7 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '⚠️ 【' + targetDayReq + '】已超過日期，過去梯次的餐點無法取消喔！');
     }
     if (targetDayReq === todayDay && isTodayCutoffPassed(targetDayReq)) {
-      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+      return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法取消餐點。');
     }
     var warnFlex = FlexModule.createConfirmCancelFlex(
       '⚠️ 確認取消【' + targetDayReq + '】當日全體餐點？',
@@ -1630,7 +1688,7 @@ function handleTextMessage(event) {
   }
 
   // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
-  var cancelMenuRegex = _getCmdRegex('cmd.cancel', /^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/i);
+  var cancelMenuRegex = _getCmdRegex('cmd.cancel', /^(?:\/)?(?:取消餐點|取消登記|取消)(?:\s+餐點)?$/i);
   if (cancelMenuRegex.test(text.trim())) {
     var isOrgMenu = isUserOrganizer(userId, userDisplayName);
     // CRITICAL: The cancellation interactive menu is STRICTLY a personal cancellation menu!
@@ -1653,8 +1711,31 @@ function handleTextMessage(event) {
       });
     }
 
+    // 道場工作項目登記（dayOfWeek='特餐'）需明確查詢，並以「特餐 日期」分組
+    var specialLockMap = {};
+    activeOrders = (activeOrders || []).slice();
+    try {
+      var specialMine = SheetModule.getUserOrders(userId, groupId, null, '特餐', userDisplayName) || [];
+      var specialChecked = {};
+      specialMine.forEach(function (so) {
+        var spKey = '特餐 ' + so.date;
+        if (!specialChecked[so.date]) {
+          specialChecked[so.date] = true;
+          var spRec = SheetModule.getSpecialDate ? SheetModule.getSpecialDate(so.date) : null;
+          if (SpecialModule && SpecialModule.isSpecialOrderingClosed && SpecialModule.isSpecialOrderingClosed(so.date, spRec)) {
+            specialLockMap[spKey] = { locked: true, reason: '已截止' };
+          }
+        }
+        var copy = {};
+        for (var sk in so) { if (Object.prototype.hasOwnProperty.call(so, sk)) copy[sk] = so[sk]; }
+        copy.dayOfWeek = spKey;
+        copy.specialDate = so.date;
+        activeOrders.push(copy);
+      });
+    } catch (specialErr) {}
+
     if (!activeOrders || activeOrders.length === 0) {
-      return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+      return LineModule.replyText(replyToken, '您目前沒有任何可取消的登記項目喔！');
     }
     var lockMap = {};
     getDaysOfWeek().forEach(function (d) {
@@ -1664,7 +1745,35 @@ function handleTextMessage(event) {
         lockMap[d] = { locked: true, reason: '已截止' };
       }
     });
+    for (var lk in specialLockMap) { lockMap[lk] = specialLockMap[lk]; }
+
+    // Flex 卡片大小有上限：筆數過多時先略過已鎖定項目，再限制顯示筆數
+    var CANCEL_MENU_MAX_ITEMS = 30;
+    var cancelOmitted = 0;
+    if (activeOrders.length > CANCEL_MENU_MAX_ITEMS) {
+      var unlockedOrders = activeOrders.filter(function (o) {
+        return !(lockMap[o.dayOfWeek] && lockMap[o.dayOfWeek].locked);
+      });
+      if (unlockedOrders.length === 0) {
+        return LineModule.replyText(replyToken, '您的登記都已截止或過期，無法取消。若需異動請洽開單人。');
+      }
+      if (unlockedOrders.length > CANCEL_MENU_MAX_ITEMS) {
+        cancelOmitted = unlockedOrders.length - CANCEL_MENU_MAX_ITEMS;
+        unlockedOrders = unlockedOrders.slice(0, CANCEL_MENU_MAX_ITEMS);
+      }
+      activeOrders = unlockedOrders;
+    }
     var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu, userLocale);
+    if (cancelOmitted > 0 && cancelFlex.body && cancelFlex.body.contents) {
+      cancelFlex.body.contents.push({
+        type: 'text',
+        text: '尚有 ' + cancelOmitted + ' 筆未顯示，可輸入「取消 週X 品項」或「取消道場工作項目 日期 品名」。',
+        size: 'xs',
+        wrap: true,
+        color: '#888888',
+        margin: 'md'
+      });
+    }
     var cancelAltText = (userLocale === 'zh-TW') ? '🗑️ 請選擇欲取消的餐點' : (_translateMsg('cancel.alt_text') || '🗑️ 請選擇欲取消的餐點');
     return LineModule.replyFlex(replyToken, cancelAltText, cancelFlex);
   }
@@ -1825,11 +1934,11 @@ function handleTextMessage(event) {
         return LineModule.replyText(replyToken, '⚠️ 【' + cancelDay + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
       }
       if (cancelDay === todayDay && isTodayCutoffPassed(cancelDay)) {
-        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+        return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
     } else if (targetItem) {
       if (isTodayCutoffPassed(todayDay)) {
-        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+        return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
     }
 
@@ -2173,7 +2282,7 @@ function handleTextMessage(event) {
     }
 
     if (acceptedItems.length === 0) {
-      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
+      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放登記或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
     }
 
     var persistAcceptedOrders = function () {

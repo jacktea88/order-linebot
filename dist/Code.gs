@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-10-12T15:42:58+08:00
+ * Automatically generated on: 2026-10-12T20:21:57+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -113,7 +113,10 @@ var CONFIG = {
    * Optional custom salt for HASHED_ID mode.
    * If left blank, falls back to CHANNEL_SECRET or default internal salt.
    */
-  HASH_SALT: ''
+  HASH_SALT: '',
+
+  /** Flex 文字字級上調級數（0 = 不調整；xxs→xs→sm→md→lg→xl→xxl→3xl→4xl→5xl）。 */
+  FLEX_TEXT_SIZE_STEPS: 2
 };
 
 /**
@@ -451,20 +454,20 @@ var I18N_MESSAGES = {
     'help.tip_click': '💡 點擊上方任一按鈕，即可直接發送指令！',
     'help.license': '服務授權：AGPL-3.0 原始碼 ',
     'help.alt_text': '指令說明',
-    'help.cmd_weekly_schedule.title': '📅 本週菜單',
+    'help.cmd_weekly_schedule.title': '📅 本週工作',
     'help.cmd_weekly_schedule.desc': '查看週一至週五排程',
     'help.cmd_weekly_schedule.btn': '看本週',
-    'help.cmd_weekly_schedule.cmd': '本週菜單',
-    'help.cmd_today_menu.title': '🍱 今日菜單',
-    'help.cmd_today_menu.desc': '查看今日菜單並點餐',
-    'help.cmd_today_menu.btn': '看菜單',
-    'help.cmd_today_menu.cmd': '菜單',
-    'help.cmd_children.title': '👶 小孩選單',
-    'help.cmd_children.desc': '小孩名冊與用餐分配管理',
-    'help.cmd_children.btn': '小孩選單',
-    'help.cmd_children.cmd': '小孩選單',
+    'help.cmd_weekly_schedule.cmd': '本週工作',
+    'help.cmd_today_menu.title': '🍱 今日工作',
+    'help.cmd_today_menu.desc': '查看今日工作並登記',
+    'help.cmd_today_menu.btn': '看工作',
+    'help.cmd_today_menu.cmd': '今日工作',
+    'help.cmd_children.title': '👶 道親選單',
+    'help.cmd_children.desc': '道親名冊與工作分配管理',
+    'help.cmd_children.btn': '道親選單',
+    'help.cmd_children.cmd': '道親選單',
     'help.cmd_my_today.title': '📝 我的登記紀錄',
-    'help.cmd_my_today.desc': '查詢個人今日點餐紀錄',
+    'help.cmd_my_today.desc': '查詢個人今日登記紀錄',
     'help.cmd_my_today.btn': '查今日',
     'help.cmd_my_today.cmd': '我的訂單',
     'help.cmd_my_weekly.title': '📦 我的本週訂單',
@@ -472,9 +475,9 @@ var I18N_MESSAGES = {
     'help.cmd_my_weekly.btn': '查全週',
     'help.cmd_my_weekly.cmd': '我的本週訂單',
     'help.cmd_cancel.title': '🗑️ 取消登記',
-    'help.cmd_cancel.desc': '自選退訂特定餐點',
+    'help.cmd_cancel.desc': '自選取消已登記的工作',
     'help.cmd_cancel.btn': '去取消',
-    'help.cmd_cancel.cmd': '取消餐點',
+    'help.cmd_cancel.cmd': '取消登記',
     'help.cmd_weekly_stats.title': '📊 本週統計',
     'help.cmd_weekly_stats.desc': '全週梯次訂購對帳總表',
     'help.cmd_weekly_stats.btn': '本週統計',
@@ -491,16 +494,24 @@ var I18N_MESSAGES = {
     'help.cmd_language.desc': '切換個人顯示與操作語言',
     'help.cmd_language.btn': '切換語言',
     'help.cmd_language.cmd': '設定語言',
-    'help.cmd_special.title': '🎉 特定日期工作項目',
-    'help.cmd_special.desc': '特定日期各組事項，請提前登記工作人員',
+    'help.cmd_special.title': '🎉 道場工作項目',
+    'help.cmd_special.desc': '道場各組事項，請提前登記工作人員',
     'help.cmd_special.btn': '看工作項目',
-    'help.cmd_special.cmd': '特定日期工作項目',
+    'help.cmd_special.cmd': '道場工作項目',
 
+    'help.cmd_my_month.title': '🗓️ 我的本月登記',
+    'help.cmd_my_month.desc': '查詢本月已登記的工作項目',
+    'help.cmd_my_month.btn': '查本月',
+    'help.cmd_my_month.cmd': '我的本月登記',
+    'help.cmd_my_next_month.title': '🗓️ 我的次月登記',
+    'help.cmd_my_next_month.desc': '查詢次月已登記的工作項目',
+    'help.cmd_my_next_month.btn': '查次月',
+    'help.cmd_my_next_month.cmd': '我的次月登記',
     // Special-date menus
-    'special.title_list': '🎉 特定日期工作項目',
+    'special.title_list': '🎉 道場工作項目',
     'special.alt_menu': '工作項目 {date}',
-    'special.list_empty': '目前沒有特定日期工作項目。',
-    'special.list_hint': '點選日期查看工作項目；登記指令：特定日期工作項目 日期 項目+人員',
+    'special.list_empty': '目前沒有道場工作項目。',
+    'special.list_hint': '點選日期查看工作項目；登記指令：道場工作項目 日期 項目+人員',
     'special.status_open': '登記中',
     'special.status_closed': '已截止登記',
     'special.cutoff_line': '⏰ 預訂截止：{cutoff}（{status}）',
@@ -517,42 +528,49 @@ var I18N_MESSAGES = {
     'special.btn_prev': '上一頁',
     'special.btn_next': '下一頁',
     'special.footer_hint': '需於截止前預訂，截止後無法新增或取消',
-    'special.usage': '📝 特定日期工作項目指令：\n• 特定日期工作項目（列出日期）\n• 特定日期工作項目 日期（看工作項目）\n• 特定日期工作項目 日期 項目+人員（登記）\n• 取消特定日期工作項目 日期 項目\n• 我的特定日期工作項目／特定日期工作項目統計 [日期]\n日期格式：2026-11-15、11/15 或 11月15日',
-    'special.usage_add': '用法：新增特定日期工作項目 日期 [標題]\n例如：新增特定日期工作項目 2026-11-15 佈置會場',
-    'special.usage_item': '用法：特定日期工作項目項目 日期 項目 人數上限\n例如：特定日期工作項目項目 2026-11-15 佈置會場 10\n（人數上限省略或 0 代表不限名額）',
-    'special.usage_cutoff': '用法：特定日期工作項目截止 日期 截止日期 時間\n例如：特定日期工作項目截止 2026-11-15 2026-11-05 18:00\n改回預設：特定日期工作項目截止 2026-11-15 預設',
-    'special.usage_cancel': '取消用法：取消特定日期工作項目 日期 項目（或「全部」）',
+    'special.usage': '📝 道場工作項目指令：\n• 道場工作項目（列出日期）\n• 道場工作項目 日期（看工作項目）\n• 道場工作項目 日期 項目+人員（登記）\n• 取消道場工作項目 日期 項目\n• 我的道場工作項目／道場工作項目統計 [日期]\n日期格式：2026-11-15、11/15 或 11月15日',
+    'special.usage_add': '用法：新增道場工作項目 日期 [標題]\n例如：新增道場工作項目 2026-11-15 佈置會場',
+    'special.usage_item': '用法：道場工作品項 日期 項目 [人數上限]\n例如：道場工作品項 2026-11-15 佈置會場 10\n（人數上限省略或 0 代表不限名額）',
+    'special.usage_cutoff': '用法：道場工作截止 日期 截止日期 時間\n例如：道場工作截止 2026-11-15 2026-11-05 18:00\n改回預設：道場工作截止 2026-11-15 預設',
+    'special.usage_cancel': '取消用法：取消道場工作項目 日期 項目（或「全部」）',
     'special.err_date_format': '⚠️ 日期格式不正確，請使用 2026-11-15、11/15 或 11月15日。',
-    'special.err_not_found': '找不到 {date} 的特定日期工作項目。',
+    'special.err_not_found': '找不到 {date} 的道場工作項目。',
     'special.err_past_date': '⚠️ {date} 已經過去，無法建立。',
-    'special.err_closed': '⛔ {date} 的特定日期工作項目已截止登記（截止時間：{cutoff}）。',
-    'special.err_cancel_closed': '⛔ {date} 的特定日期工作項目已過截止時間（{cutoff}），無法取消，請洽主辦人。',
+    'special.err_closed': '⛔ {date} 的道場工作項目已截止登記（截止時間：{cutoff}）。',
+    'special.err_cancel_closed': '⛔ {date} 的道場工作項目已過截止時間（{cutoff}），無法取消，請洽主辦人。',
     'special.err_organizer_only': '⚠️ 只有主辦人可以執行此操作。',
     'special.err_no_organizer': '⚠️ 尚未設定主辦人，請先由主辦人傳送「開單」，或在 Config 設定 ORGANIZER_ID。',
     'special.err_cutoff_after_event': '⚠️ 截止時間不可晚於活動日 {date}。',
-    'special.add_ok': '✅ 已建立特定日期工作項目 {date}',
-    'special.add_next': '接著請用「特定日期工作項目項目 日期 項目 人數上限」新增工作項目。',
-    'special.item_ok': '✅ {date} 特定日期工作項目項目已儲存：{item} $' + '{price}（{limit}，目前已登記 {sold} 人）',
+    'special.add_ok': '✅ 已建立道場工作項目 {date}',
+    'special.add_next': '接著請用「道場工作品項 日期 項目 人數上限」新增工作項目。',
+    'special.item_ok': '✅ {date} 道場工作品項已儲存：{item}（{limit}，目前已登記 {sold} 人）',
     'special.cutoff_show': '📅 {date}',
     'special.cutoff_ok': '✅ 已更新 {date} 的截止時間',
     'special.fail_no_item': '❌ 找不到品項「{item}」',
     'special.fail_ambiguous': '❌ 「{item}」符合多個品項：{options}，請輸入完整品名',
     'special.fail_sold_out': '❌ {item}：已售完',
-    'special.fail_exceeds': '❌ {item}：數量不足，僅剩 {left} 份',
+    'special.fail_exceeds': '❌ {item}：名額不足，僅剩 {left} 人',
     'special.fail_busy': '❌ {item}：系統忙碌，請稍後再試',
-    'special.left_suffix': '（剩餘 {left} 份）',
-    'special.order_ok': '✅ 特定日期工作項目登記成功【{date}】',
-    'special.order_total': '💰 合計：$' + '{amount}',
-    'special.notify_order': '📢【特定日期工作項目登記】{user}\n{date}\n{items}\n合計 $' + '{amount}',
-    'special.notify_cancel': '📢【特定日期工作項目取消】{user} 取消 {date} 共 {count} 筆',
-    'special.cancel_ok': '✅ 已取消 {date} 的特定日期工作項目 {count} 筆',
-    'special.cancel_none': '找不到 {date} 符合的特定日期工作項目訂單。',
-    'special.my_title': '🎉 我的特定日期工作項目訂單',
-    'special.my_empty': '您目前沒有特定日期工作項目訂單。',
+    'special.left_suffix': '（剩餘 {left} 人）',
+    'special.order_ok': '✅ 道場工作項目登記成功【{date}】',
+    'special.notify_order': '📢【道場工作項目登記】{user}\n{date}\n{items}',
+    'special.notify_cancel': '📢【道場工作項目取消】{user} 取消 {date} 共 {count} 筆',
+    'special.cancel_ok': '✅ 已取消 {date} 的道場工作項目 {count} 筆',
+    'special.cancel_none': '找不到 {date} 符合的道場工作項目登記。',
+    'special.my_title': '🎉 我的道場工作項目登記',
+    'special.my_empty': '您目前沒有道場工作項目登記。',
     'special.stats_none': '  （尚無訂單）',
-    'special.stats_empty': '目前沒有特定日期工作項目訂單。',
-    'special.stats_total': '合計：{qty} 人 ／ $' + '{amount}',
+    'special.stats_empty': '目前沒有道場工作項目登記。',
+    'special.stats_total': '合計：{qty} 人',
 
+    // Monthly registrations
+    'month.this': '本月',
+    'month.next': '次月',
+    'month.title': '🗓️ 我的{scope}登記（{month}）',
+    'month.empty': '您{scope}（{month}）尚未有任何登記項目。',
+    'month.kind_special': '道場工作',
+    'month.total': '共 {count} 項',
+    'month.truncated': '…（項目過多，僅顯示部分）',
     // Language selector
     'lang.title': '🌐 語言設定 (Language Settings)',
     'lang.subtitle': '請選擇您偏好的顯示與操作語言：',
@@ -563,56 +581,56 @@ var I18N_MESSAGES = {
     'lang.prompt_select': '🌐 請選擇要切換的語言：',
 
     // Submenu: Children Management
-    'children_menu.title': '👶 小孩與用餐對象管理選單',
+    'children_menu.title': '👶 道親與工作對象管理選單',
     'children_menu.subtitle': '點擊按鈕直接查詢或帶入指令範例',
-    'children_menu.item_list_title': '👦 我的小孩 / 小孩名單',
-    'children_menu.item_list_desc': '圖文卡片瀏覽名下小孩清單',
+    'children_menu.item_list_title': '👦 我的道親 / 道親名單',
+    'children_menu.item_list_desc': '圖文卡片瀏覽名下道親清單',
     'children_menu.btn_list': '看名單',
-    'children_menu.cmd_list': '我的小孩',
-    'children_menu.item_batch_title': '👶 設定小孩',
-    'children_menu.item_batch_desc': '批次綁定小孩（使用逗號「,」分隔）',
+    'children_menu.cmd_list': '我的道親',
+    'children_menu.item_batch_title': '👶 設定道親',
+    'children_menu.item_batch_desc': '批次綁定道親（使用逗號「,」分隔）',
     'children_menu.btn_batch': '批次登記',
-    'children_menu.cmd_batch': '設定小孩',
-    'children_menu.item_add_title': '➕ 新增小孩',
-    'children_menu.item_add_desc': '新增單一小孩姓名與備註',
-    'children_menu.btn_add': '新增小孩',
-    'children_menu.cmd_add': '新增小孩',
-    'children_menu.item_del_title': '🗑️ 刪除小孩',
-    'children_menu.item_del_desc': '移除指定小孩名冊紀錄',
-    'children_menu.btn_delete': '刪除小孩',
-    'children_menu.cmd_delete': '刪除小孩',
-    'children_menu.footer': '💡 點擊「新增小孩 / 設定小孩 / 刪除小孩」可快速操作，亦可在對話框直接輸入指令！',
-    'children_menu.alt_text': '👶 小孩與用餐對象管理選單',
+    'children_menu.cmd_batch': '設定道親',
+    'children_menu.item_add_title': '➕ 新增道親',
+    'children_menu.item_add_desc': '新增單一道親姓名與備註',
+    'children_menu.btn_add': '新增道親',
+    'children_menu.cmd_add': '新增道親',
+    'children_menu.item_del_title': '🗑️ 刪除道親',
+    'children_menu.item_del_desc': '移除指定道親名冊紀錄',
+    'children_menu.btn_delete': '刪除道親',
+    'children_menu.cmd_delete': '刪除道親',
+    'children_menu.footer': '💡 點擊「新增道親 / 設定道親 / 刪除道親」可快速操作，亦可在對話框直接輸入指令！',
+    'children_menu.alt_text': '👶 道親與工作對象管理選單',
 
     // Submenu: Batch Set Children Prompt
-    'children_batch.prompt': '💡 請輸入欲設定的小孩姓名，多位小孩請使用逗號「,」分隔。\n例如：「設定小孩 大寶, 二寶」\n（可直接點選下方快捷按鈕快速輸入）',
-    'children_batch.btn_input': '✏️ 手動輸入小孩姓名',
-    'children_batch.btn_menu': '👶 小孩選單',
+    'children_batch.prompt': '💡 請輸入欲設定的道親姓名，多位道親請使用逗號「,」分隔。\n例如：「設定道親 大寶, 二寶」\n（可直接點選下方快捷按鈕快速輸入）',
+    'children_batch.btn_input': '✏️ 手動輸入道親姓名',
+    'children_batch.btn_menu': '👶 道親選單',
 
     // Submenu: Add Child Prompt
-    'children_add.prompt': '💡 請輸入小孩姓名與備註，例如：「新增小孩 小寶 備註」\n（可直接點選下方快捷按鈕快速輸入）',
-    'children_add.btn_input': '✏️ 手動輸入小孩姓名',
-    'children_add.btn_menu': '👶 小孩選單',
-    'children_add.error_no_name': '⚠️ 請輸入小孩姓名與備註，例如：「新增小孩 小寶 備註」',
-    'children_add.success': '✅ 已成功新增小孩「{name}」{note}！',
+    'children_add.prompt': '💡 請輸入道親姓名與備註，例如：「新增道親 小寶 備註」\n（可直接點選下方快捷按鈕快速輸入）',
+    'children_add.btn_input': '✏️ 手動輸入道親姓名',
+    'children_add.btn_menu': '👶 道親選單',
+    'children_add.error_no_name': '⚠️ 請輸入道親姓名與備註，例如：「新增道親 小寶 備註」',
+    'children_add.success': '✅ 已成功新增道親「{name}」{note}！',
 
     // Submenu: Children Delete Shortcuts
-    'children_delete.prompt': '🗑️ 請選擇欲刪除的小孩：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）',
-    'children_delete.empty': '⚠️ 您名冊中尚未登記任何小孩，目前無可刪除的項目喔！',
+    'children_delete.prompt': '🗑️ 請選擇欲刪除的道親：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）',
+    'children_delete.empty': '⚠️ 您名冊中尚未登記任何道親，目前無可刪除的項目喔！',
     'children_delete.btn_cancel': '❌ 取消刪除',
     'children_delete.cmd_cancel': '取消刪除',
-    'children_delete.abort_success': '👌 已取消刪除操作，小孩名冊均完整保留。',
-    'children_delete.success': '✅ 已成功移除小孩「{name}」的名冊紀錄。',
-    'children_delete.not_found': '⚠️ 未找到名為「{name}」的小孩紀錄喔！',
+    'children_delete.abort_success': '👌 已取消刪除操作，道親名冊均完整保留。',
+    'children_delete.success': '✅ 已成功移除道親「{name}」的名冊紀錄。',
+    'children_delete.not_found': '⚠️ 未找到名為「{name}」的道親紀錄喔！',
 
     // Submenu: Children List Card
-    'children_list.title': '👶 我的小孩與用餐對象名冊',
-    'children_list.subtitle': '{name} 登記的用餐對象與備註',
-    'children_list.empty': '（尚未登記任何小孩或用餐對象）',
-    'children_list.btn_setup': '設定小孩',
-    'children_list.cmd_setup': '設定小孩',
-    'children_list.alt_text': '👶 我的小孩與用餐對象名冊',
-    'children_list.footer': '💡 點餐方式：\n1. 若僅登記 1 位小孩，點擊菜單「+1 點餐」將自動預設分配；若有多位小孩則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！',
+    'children_list.title': '👶 我的道親與工作對象名冊',
+    'children_list.subtitle': '{name} 登記的工作對象與備註',
+    'children_list.empty': '（尚未登記任何道親或工作對象）',
+    'children_list.btn_setup': '設定道親',
+    'children_list.cmd_setup': '設定道親',
+    'children_list.alt_text': '👶 我的道親與工作對象名冊',
+    'children_list.footer': '💡 登記方式：\n1. 若僅登記 1 位道親，點擊工作「+1 登記」將自動預設分配；若有多位道親則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 本週訂餐排程表',
@@ -620,41 +638,41 @@ var I18N_MESSAGES = {
     'schedule.no_restaurant': '尚未指定店家',
     'schedule.cutoff_prefix': '⏰ 截止 ',
     'schedule.no_cutoff': '無截止時間',
-    'schedule.btn_menu': '看菜單',
-    'schedule.footer': '💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂',
+    'schedule.btn_menu': '看工作',
+    'schedule.footer': '💡 輸入「週一+1 [餐點]」或點選「看工作」進行預訂',
     'schedule.alt_text': '📅 本週訂餐排程表 (週一至週五)',
 
     // Submenu: Today Menu Card
-    'menu.title_suffix': ' 菜單',
+    'menu.title_suffix': ' 工作',
     'menu.cutoff_prefix': '⏰ 今日截止時間: ',
-    'menu.btn_order': '+1 點餐',
+    'menu.btn_order': '+1 登記',
     'menu.sold_out': '已售完',
-    'menu.footer_hint1': '💡 點擊「+1 點餐」按鈕即可直接加訂！',
+    'menu.footer_hint1': '💡 點擊「+1 登記」按鈕即可直接加訂！',
     'menu.footer_hint2': '亦可輸入「{day}菜名+數量」或「取消 菜名」',
-    'menu.alt_text': '【訂餐開始】{restaurant} 菜單',
+    'menu.alt_text': '【訂餐開始】{restaurant} 工作',
     'menu.page_indicator': '📄 第 {page} / {total} 頁 (共 {total} 頁)',
-    'menu.more_pages_hint': '📖 查看更多菜單品項 · 請點選頁數（共 {total} 頁）：',
+    'menu.more_pages_hint': '📖 查看更多工作品項 · 請點選頁數（共 {total} 頁）：',
     'menu.btn_page': '📄 第 {page} 頁',
     'menu.page_footer': '📄 目前為第 {page} / {total} 頁 · 全店共 {items} 道餐點',
 
     // Submenu: Cancel Order Card
-    'cancel.title': '🗑️ 取消訂單選單',
-    'cancel.title_org': '👑 取消訂單選單 (開單人)',
-    'cancel.subtitle': '{name} 的個人進行中訂單',
-    'cancel.no_orders': '（目前沒有任何進行中的訂餐紀錄）',
+    'cancel.title': '🗑️ 取消登記',
+    'cancel.title_org': '👑 取消登記 (開單人)',
+    'cancel.subtitle': '{name} 的個人登記項目',
+    'cancel.no_orders': '（目前沒有任何登記項目）',
     'cancel.day_items': '【{day} 預訂項目】',
     'cancel.locked': '無法取消',
     'cancel.reason_expired': '已過期',
     'cancel.reason_cutoff': '已截止',
     'cancel.btn_cancel_item': '取消此項',
     'cancel.btn_cancel_day': '取消我的【{day}】餐點',
-    'cancel.btn_cancel_all': '取消我的全部預訂 (週一至週五)',
+    'cancel.btn_cancel_all': '取消我的全部預訂',
     'cancel.org_section': '👑 開單人管理專區',
     'cancel.btn_org_day': '⚠️ 取消全體當日餐點 (需確認)',
     'cancel.btn_org_all': '🚨 取消全體未截止預訂 (需確認)',
     'cancel.all_locked_warning': '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。',
     'cancel.footer_org': '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。',
-    'cancel.footer_member': '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。',
+    'cancel.footer_member': '💡 您只能取消自己登記的項目；如需取消他人登記的項目，請洽管理員。',
     'cancel.confirm_header': '🚨 取消確認警告 (開單人專用)',
     'cancel.btn_abort': '放棄取消',
     'cancel.confirm_footer': '⚠️ 警告：此操作將影響全體成員且無法復原！',
@@ -676,7 +694,7 @@ var I18N_MESSAGES = {
     'stats.status_open': '開放中',
     'stats.status_closed': '已截止',
     'stats.footer_closed': '⏰ 已截止，請各成員儘速完成付款',
-    'stats.footer_open': '🟢 目前開放點餐中',
+    'stats.footer_open': '🟢 目前開放登記中',
     'stats.footer_weekly_closed': '⏰ 本週預訂已截止，請各成員依此表金額完成付款',
     'stats.footer_weekly_open': '📋 請各成員依此表金額完成對帳與付款',
     'stats.close_btn_today': '🔒 截止今日訂餐（結單）',
@@ -708,9 +726,9 @@ var I18N_MESSAGES = {
     'payment.linepay_qr_bullet': '• LINE Pay 收款碼：',
 
     // Quick Reply Recipient Assignment
-    'order.qr_prompt': '🍱 請選擇【{item}】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「{btn}」）',
-    'order.qr_prompt_no_kids': '🍱 請選擇【{item}】要分配給小孩或自己？\n（點「{btn}」輸入小孩姓名，或選擇「{self}」直接下單）',
-    'order.qr_note_btn': '✏️ 手動輸入小孩名字',
+    'order.qr_prompt': '🍱 請選擇【{item}】要分配給哪位道親或自己？\n（可點選下方快捷按鈕，或點「{btn}」）',
+    'order.qr_prompt_no_kids': '🍱 請選擇【{item}】要分配給道親或自己？\n（點「{btn}」輸入道親姓名，或選擇「{self}」直接下單）',
+    'order.qr_note_btn': '✏️ 手動輸入道親名字',
 
     // Order Receipt Card
     'receipt.title': '✅ 加購成功',
@@ -719,18 +737,18 @@ var I18N_MESSAGES = {
     'receipt.no_items': '（尚無項目）',
     'receipt.total_weekly': '本週合計',
     'receipt.total_daily': '合計',
-    'receipt.cancel_hint': '💡 回覆「取消」可開啟選單自選退訂特定餐點',
+    'receipt.cancel_hint': '💡 回覆「取消」可開啟選單自選取消已登記的工作',
     'receipt.alt_text': '訂單已記錄{suffix}：{day} {item}',
 
     // My Orders Query Responses
     'my_orders.no_weekly_orders': '您本週（週一至週五）尚未有任何預訂紀錄喔！',
-    'my_orders.no_today_orders': '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。',
+    'my_orders.no_today_orders': '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」登記。',
     'my_orders.weekly_title': '🍱【您的本週梯次訂單】',
     'my_orders.today_title': '【您的今日訂單】',
     'my_orders.weekly_total': '本週總計：${amount} 元',
     'my_orders.today_total': '總計：${amount} 元',
     'my_orders.subtotal': ' (小計 ${subtotal})',
-    'my_orders.cutoff_notice': '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。'
+    'my_orders.cutoff_notice': '\n⚠️ 今日登記已超過截止時間，不可修改或取消餐點。'
   },
 
   'en': {
@@ -2278,18 +2296,20 @@ var I18N_MESSAGES = {
 var I18N_COMMANDS = {
   'zh-TW': {
     'cmd.help':     ['幫助', '說明', '指令', 'help', '/help'],
-    'cmd.menu':     ['菜單', 'menu', '/menu'],
-    'cmd.weekly':   ['本週菜單', '每週菜單', '本週排程', '排程', '週排程'],
+    'cmd.menu':     ['菜單', '工作', '今日工作', 'menu', '/menu'],
+    'cmd.weekly':   ['本週菜單', '每週菜單', '本週工作', '每週工作', '本週排程', '排程', '週排程'],
     'cmd.my_order': ['我的訂單', '查詢訂單', '查單'],
     'cmd.my_weekly':['我的本週訂單', '本週訂單'],
-    'cmd.cancel':   ['取消餐點', '取消'],
+    'cmd.my_month': ['我的本月登記'],
+    'cmd.my_next_month': ['我的次月登記'],
+    'cmd.cancel':   ['取消餐點', '取消登記', '取消'],
     'cmd.close':    ['結單', '截止訂餐', '本週結單', '今日結單'],
     'cmd.open':     ['開單', '開始訂餐'],
-    'cmd.children': ['設定小孩', '小孩設定', '登記小孩', '批次登記', '批次設定小孩'],
-    'cmd.children_menu': ['小孩選單', '小孩管理', '小孩幫助', '孩子選單'],
-    'cmd.my_kids':  ['我的小孩', '小孩名單', '小孩名冊', '我的孩子'],
-    'cmd.add_kid':  ['新增小孩', '加小孩'],
-    'cmd.del_kid':  ['刪除小孩', '移除小孩'],
+    'cmd.children': ['設定小孩', '小孩設定', '登記小孩', '批次登記', '批次設定小孩', '設定道親', '道親設定', '登記道親', '批次設定道親'],
+    'cmd.children_menu': ['小孩選單', '小孩管理', '小孩幫助', '孩子選單', '道親選單', '道親管理', '道親幫助'],
+    'cmd.my_kids':  ['我的小孩', '小孩名單', '小孩名冊', '我的孩子', '我的道親', '道親名單', '道親名冊'],
+    'cmd.add_kid':  ['新增小孩', '加小孩', '新增道親', '加道親'],
+    'cmd.del_kid':  ['刪除小孩', '移除小孩', '刪除道親', '移除道親'],
     'cmd.abort_del_kid': ['取消刪除', '放棄刪除'],
     'cmd.abort_cancel': ['放棄取消', '取消操作'],
     'cmd.stats_today':  ['今日統計', '本日統計', '統計', '即時統計', '今日訂單', '今日訂餐', '今日訂餐統計', '今日訂單統計', '本日訂單', '本日訂餐', '本日訂單統計'],
@@ -2300,13 +2320,13 @@ var I18N_COMMANDS = {
     'cmd.import_nidin': ['你訂匯入', 'nidin匯入'],
     'cmd.import_custom':['匯入自訂餐廳', '匯入餐廳', '自訂餐廳匯入'],
     'cmd.lang':     ['設定語言', '切換語言', '語言設定', '語言', 'lang', 'language', '/lang'],
-    'cmd.special_menu':   ['特定日期工作項目', '特餐菜單', '特別菜單', '特餐'],
-    'cmd.special_add':    ['新增特餐'],
-    'cmd.special_item':   ['特餐品項'],
-    'cmd.special_cutoff': ['特餐截止'],
-    'cmd.special_cancel': ['取消特餐'],
-    'cmd.special_my':     ['我的特餐'],
-    'cmd.special_stats':  ['特餐統計']
+    'cmd.special_menu':   ['道場工作項目', '特定日期工作項目', '工作', '特餐菜單', '特別菜單', '特餐'],
+    'cmd.special_add':    ['新增道場工作項目', '新增特餐'],
+    'cmd.special_item':   ['道場工作品項', '特餐品項'],
+    'cmd.special_cutoff': ['道場工作截止', '特餐截止'],
+    'cmd.special_cancel': ['取消道場工作項目', '取消特餐'],
+    'cmd.special_my':     ['我的道場工作項目', '我的特餐'],
+    'cmd.special_stats':  ['道場工作項目統計', '特餐統計']
   },
   'en': {
     'cmd.help':     ['help', 'commands', 'guide', '/help'],
@@ -2963,6 +2983,47 @@ function _authHeaders() {
  * Public API — Reply messages
  * ------------------------------------------------------------------ */
 
+var _FLEX_TEXT_SIZES = ['xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl'];
+
+/**
+ * _scaleFlexNode — 複製 flex 節點並上調所有文字元件字級；未指定 size 者視為 md。
+ * @param {*} node - Flex 節點、陣列或其他值。
+ * @param {number} steps - 上調級數。
+ * @returns {*}
+ */
+function _scaleFlexNode(node, steps) {
+  if (Array.isArray(node)) {
+    return node.map(function (n) { return _scaleFlexNode(n, steps); });
+  }
+  if (!node || typeof node !== 'object') return node;
+  var copy = {};
+  Object.keys(node).forEach(function (k) { copy[k] = _scaleFlexNode(node[k], steps); });
+  if (node.type === 'text') {
+    var idx = _FLEX_TEXT_SIZES.indexOf(node.size || 'md');
+    if (idx >= 0) {
+      copy.size = _FLEX_TEXT_SIZES[Math.min(idx + steps, _FLEX_TEXT_SIZES.length - 1)];
+    }
+  }
+  return copy;
+}
+
+/**
+ * _scaleFlexMessages — 對 type 為 flex 的訊息套用 CONFIG.FLEX_TEXT_SIZE_STEPS 字級調整。
+ * @param {Array<Object>} messages - LINE 訊息陣列。
+ * @returns {Array<Object>}
+ */
+function _scaleFlexMessages(messages) {
+  var steps = (typeof CONFIG !== 'undefined' && CONFIG && Number(CONFIG.FLEX_TEXT_SIZE_STEPS)) || 0;
+  if (steps <= 0 || !Array.isArray(messages)) return messages;
+  return messages.map(function (m) {
+    if (!m || m.type !== 'flex' || !m.contents) return m;
+    var out = {};
+    Object.keys(m).forEach(function (k) { out[k] = m[k]; });
+    out.contents = _scaleFlexNode(m.contents, steps);
+    return out;
+  });
+}
+
 /**
  * replyMessages — Send a reply message to LINE via the Reply API.
  * @param {string} replyToken - Reply token from the webhook event.
@@ -2973,7 +3034,7 @@ function replyMessages(replyToken, messages) {
   var headers = _authHeaders();
   var payload = {
     replyToken: replyToken,
-    messages: messages
+    messages: _scaleFlexMessages(messages)
   };
   return _httpPostJson(CONFIG.LINE_REPLY_URL, headers, payload);
 }
@@ -2999,11 +3060,17 @@ function replyText(replyToken, text) {
  * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
 function replyFlex(replyToken, altText, flexContents) {
-  return replyMessages(replyToken, [{
+  var res = replyMessages(replyToken, [{
     type: 'flex',
     altText: altText,
     contents: flexContents
   }]);
+  // LINE 拒絕卡片時（同步的 GAS 環境）改回文字，避免完全沒回應
+  if (res && typeof res.then !== 'function' && res.statusCode >= 400 && res.statusCode < 500) {
+    var detail = res.data ? (res.data.message || '') + (res.data.details ? ' ' + JSON.stringify(res.data.details) : '') : '';
+    return replyText(replyToken, '⚠️ ' + altText + '\n（卡片顯示失敗 HTTP ' + res.statusCode + '）' + detail.slice(0, 300));
+  }
+  return res;
 }
 
 /**
@@ -3037,7 +3104,7 @@ function pushMessages(to, messages) {
   var headers = _authHeaders();
   var payload = {
     to: to,
-    messages: messages
+    messages: _scaleFlexMessages(messages)
   };
   var pushUrl = (CONFIG && CONFIG.LINE_PUSH_URL) ? CONFIG.LINE_PUSH_URL : 'https://api.line.me/v2/bot/message/push';
   return _httpPostJson(pushUrl, headers, payload);
@@ -3310,6 +3377,7 @@ function validateSignature(bodyString, signature, channelSecret) {
       // Internal helpers exposed for Node.js testing.
       _httpPostJson: _httpPostJson,
       _httpGetJson: _httpGetJson,
+      _scaleFlexMessages: _scaleFlexMessages,
       _isGasRuntime: _isGasRuntime
     };
   }
@@ -6807,7 +6875,7 @@ function addSpecialOrder(orderData) {
       childName: orderData.childName,
       itemName: item.itemName,
       quantity: qty,
-      price: item.price
+      price: 0
     });
     return { ok: true, record: record, item: item, remaining: remaining };
   } finally {
@@ -8489,15 +8557,17 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
     userLocaleActive: userLocaleActive
   }, function () {
     var commands = [
-      { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
       { label: _translateHelper('help.cmd_children.title', {}, locale), desc: _translateHelper('help.cmd_children.desc', {}, locale), cmd: _translateHelper('help.cmd_children.cmd', {}, locale), btnText: _translateHelper('help.cmd_children.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
       { label: _translateHelper('help.cmd_cancel.title', {}, locale), desc: _translateHelper('help.cmd_cancel.desc', {}, locale), cmd: _translateHelper('help.cmd_cancel.cmd', {}, locale), btnText: _translateHelper('help.cmd_cancel.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_month.title', {}, locale), desc: _translateHelper('help.cmd_my_month.desc', {}, locale), cmd: _translateHelper('help.cmd_my_month.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_month.btn', {}, locale) },
+      { label: _translateHelper('help.cmd_my_next_month.title', {}, locale), desc: _translateHelper('help.cmd_my_next_month.desc', {}, locale), cmd: _translateHelper('help.cmd_my_next_month.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_next_month.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
+      // { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
       { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) }
     ];
 
@@ -9032,20 +9102,20 @@ function createSpecialDateListFlex(dates, locale) {
     var statusKey = d.closed ? 'special.status_closed' : 'special.status_open';
     var titleLine = d.eventDate + (d.weekday ? ' (' + d.weekday + ')' : '');
     var left = [
-      _flexText(titleLine, { size: 'sm', weight: 'bold', color: FLEX_COLORS.textPrimary, wrap: true })
+      _flexText(titleLine, { size: 'md', weight: 'bold', color: FLEX_COLORS.textPrimary, wrap: true })
     ];
     if (d.title) {
-      left.push(_flexText(d.title, { size: 'xs', color: FLEX_COLORS.primaryDark, wrap: true, margin: 'xs' }));
+      left.push(_flexText(d.title, { size: 'md', color: FLEX_COLORS.primaryDark, wrap: true, margin: 'xs' }));
     }
     left.push(_flexText(
       _translateHelper('special.cutoff_label', { cutoff: d.cutoffAt }, loc) + ' · ' + _translateHelper(statusKey, {}, loc),
-      { size: 'xxs', color: d.closed ? FLEX_COLORS.danger : FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }
+      { size: 'sm', color: d.closed ? FLEX_COLORS.danger : FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }
     ));
     return _flexBox([
       _flexBox(left, { layout: 'vertical', flex: 4, justifyContent: 'center' }),
       {
         type: 'button',
-        action: { type: 'message', label: _translateHelper('special.btn_view', {}, loc), text: '特餐 ' + d.eventDate },
+        action: { type: 'message', label: _translateHelper('special.btn_view', {}, loc), text: '工作 ' + d.eventDate },
         style: 'primary',
         color: FLEX_COLORS.primary,
         height: 'sm',
@@ -9060,7 +9130,7 @@ function createSpecialDateListFlex(dates, locale) {
   var body = _flexBox(rows, { layout: 'vertical', paddingAll: 'md', backgroundColor: FLEX_COLORS.surface });
   var footer = _flexBox([
     _flexText(_translateHelper('special.list_hint', {}, loc), {
-      size: 'xxs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
+      size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
     })
   ], { layout: 'vertical', paddingAll: 'sm', backgroundColor: FLEX_COLORS.background });
 
@@ -9092,16 +9162,16 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
     _flexText('🎉 ' + (info.title || _translateHelper('special.title_list', {}, loc)), {
       size: 'xl', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', wrap: true
     }),
-    _flexText('📅 ' + dateLabel, { size: 'sm', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs' }),
+    _flexText('📅 ' + dateLabel, { size: 'lg', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs' }),
     _flexText(
       _translateHelper('special.cutoff_label', { cutoff: info.cutoffAt }, loc) + '（' +
         _translateHelper(info.closed ? 'special.status_closed' : 'special.status_open', {}, loc) + '）',
-      { size: 'sm', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs', wrap: true }
+      { size: 'lg', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs', wrap: true }
     )
   ];
   if (totalPages > 1) {
     headerTexts.push(_flexText(_translateHelper('special.page_indicator', { page: curPage, total: totalPages }, loc), {
-      size: 'xs', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs'
+      size: 'md', weight: 'bold', color: FLEX_COLORS.textOnColor, align: 'start', margin: 'xs'
     }));
   }
   var header = _flexBox(headerTexts, {
@@ -9113,14 +9183,14 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
   var bodyContents = [];
   if (groups.length === 0) {
     bodyContents.push(_flexText(_translateHelper('special.menu_empty', {}, loc), {
-      size: 'sm', color: FLEX_COLORS.textSecondary, align: 'center', margin: 'lg'
+      size: 'lg', color: FLEX_COLORS.textSecondary, align: 'center', margin: 'lg'
     }));
   }
 
   var rendered = 0;
   groups.forEach(function (group, gi) {
     bodyContents.push(_flexText('【' + group.category + '】', {
-      size: 'md', weight: 'bold', color: FLEX_COLORS.primaryDark, align: 'start', margin: gi === 0 ? 'none' : 'md'
+      size: 'xl', weight: 'bold', color: FLEX_COLORS.primaryDark, align: 'start', margin: gi === 0 ? 'none' : 'md'
     }));
 
     group.items.forEach(function (item) {
@@ -9136,16 +9206,16 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
 
       var leftBox = [
         _flexText(item.itemName, {
-          size: 'sm', weight: 'bold', wrap: true,
+          size: 'lg', weight: 'bold', wrap: true,
           color: disabled ? FLEX_COLORS.textSecondary : FLEX_COLORS.textPrimary
         }),
-        _flexText(_formatPrice(item.price) + ' · ' + qtyLabel, {
-          size: 'xs', weight: 'bold', margin: 'xs', wrap: true,
+        _flexText(qtyLabel, {
+          size: 'md', weight: 'bold', margin: 'xs', wrap: true,
           color: soldOut ? FLEX_COLORS.danger : (disabled ? FLEX_COLORS.textSecondary : FLEX_COLORS.primaryDark)
         })
       ];
       if (item.description) {
-        leftBox.push(_flexText(item.description, { size: 'xxs', color: FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }));
+        leftBox.push(_flexText(item.description, { size: 'sm', color: FLEX_COLORS.textSecondary, wrap: true, margin: 'xs' }));
       }
 
       var button;
@@ -9155,7 +9225,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
           action: {
             type: 'message',
             label: _translateHelper(soldOut ? 'special.btn_sold_out' : 'special.btn_closed', {}, loc),
-            text: '特餐 ' + info.eventDate
+            text: '工作 ' + info.eventDate
           },
           style: 'secondary',
           height: 'sm',
@@ -9167,7 +9237,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
           action: {
             type: 'message',
             label: _translateHelper('special.btn_order', {}, loc),
-            text: '特餐 ' + info.eventDate + ' ' + item.itemName + '+1'
+            text: '工作 ' + info.eventDate + ' ' + item.itemName + '+1'
           },
           style: 'primary',
           color: FLEX_COLORS.primary,
@@ -9194,7 +9264,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
       if (p === curPage) continue;
       pageButtons.push({
         type: 'button',
-        action: { type: 'message', label: _translateHelper('menu.btn_page', { page: p }, loc), text: '特餐 ' + info.eventDate + ' 第' + p + '頁' },
+        action: { type: 'message', label: _translateHelper('menu.btn_page', { page: p }, loc), text: '工作 ' + info.eventDate + ' 第' + p + '頁' },
         style: 'primary',
         color: FLEX_COLORS.primary,
         height: 'sm'
@@ -9208,7 +9278,7 @@ function createSpecialMenuFlex(info, items, soldMap, locale, page, pageSize) {
   var body = _flexBox(bodyContents, { layout: 'vertical', paddingAll: 'md', backgroundColor: FLEX_COLORS.surface });
   var footer = _flexBox([
     _flexText(_translateHelper('special.footer_hint', {}, loc), {
-      size: 'xxs', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
+      size: 'sm', color: FLEX_COLORS.textSecondary, align: 'center', wrap: true
     })
   ], { layout: 'vertical', paddingAll: 'sm', backgroundColor: FLEX_COLORS.background });
 
@@ -10045,7 +10115,9 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
     var anyDayUnlocked = false;
 
     dayOrder.forEach(function (day, di) {
-      var displayDay = _displayDayHelper(day, loc);
+      var displayDay = (dayMap[day][0] && dayMap[day][0].specialDate)
+        ? '道場工作 ' + dayMap[day][0].specialDate
+        : _displayDayHelper(day, loc);
       var dayItems = dayMap[day];
       var dayLock = locks[day];
       var isDayLocked = dayLock && dayLock.locked;
@@ -10076,8 +10148,10 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
 
       dayItems.forEach(function (it) {
         var childTag = it.childName ? ' [' + it.childName + ']' : '';
-        var cancelCmd = '取消 ' + day + ' ' + (it.childName ? it.childName + ' ' : '') + it.itemName;
-        var itemText = it.itemName + childTag + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
+        var cancelCmd = it.specialDate
+          ? '取消道場工作項目 ' + it.specialDate + ' ' + it.itemName
+          : '取消 ' + day + ' ' + (it.childName ? it.childName + ' ' : '') + it.itemName;
+        var itemText = it.itemName + childTag + (it.quantity > 1 ? ' x' + it.quantity : '');
 
         var actionComponent = isDayLocked
           ? _flexBox([
@@ -10136,8 +10210,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
           type: 'button',
           action: {
             type: 'message',
-            label: _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
-            text: '取消我的 ' + day + ' 全部'
+            label: dayItems[0] && dayItems[0].specialDate ? '取消此日期全部登記' : _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
+            text: dayItems[0] && dayItems[0].specialDate ? '取消道場工作項目 ' + dayItems[0].specialDate + ' 全部' : '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
           height: 'sm',
@@ -10544,7 +10618,7 @@ function createChildrenListFlex(userName, children, locale) {
       margin: 'md'
     });
   } else {
-    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（點餐時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（登記時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -10571,7 +10645,7 @@ function createChildrenListFlex(userName, children, locale) {
     });
 
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    var footerGuide = _translateHelper('children_list.footer', {}, loc) || '💡 點餐方式：\n1. 若僅登記 1 位小孩，點擊菜單「+1 點餐」將自動預設分配；若有多位小孩則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！';
+    var footerGuide = _translateHelper('children_list.footer', {}, loc) || '💡 登記方式：\n1. 若僅登記 1 位道親，點擊工作「+1 登記」將自動預設分配；若有多位道親則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！';
     bodyContents.push(_flexText(footerGuide, {
       size: 'xs',
       color: FLEX_COLORS.primaryDark,
@@ -11120,6 +11194,30 @@ function _specialShowMenu(ctx, eventDate, page) {
   };
 }
 
+function _specialChildPrompt(ctx, eventDate, itemName, qty, kids) {
+  var base = '工作 ' + eventDate + ' ' + itemName + '+' + (qty || 1);
+  var selfLabel = _spT(ctx, 'common.self');
+  var noteBtn = _spT(ctx, 'order.qr_note_btn');
+  var items = kids.map(function (k) {
+    return { type: 'action', action: { type: 'message', label: ('👦 ' + k).slice(0, 20), text: base + ' (' + k + ')' } };
+  });
+  items.push({ type: 'action', action: { type: 'message', label: '👤 ' + selfLabel, text: base + ' (' + selfLabel + ')' } });
+  items.push({
+    type: 'action',
+    action: {
+      type: 'postback',
+      label: noteBtn.slice(0, 20),
+      data: 'action=prompt_note&item=' + encodeURIComponent(itemName) + '&qty=' + (qty || 1),
+      inputOption: 'openKeyboard',
+      fillInText: base + ' ()'
+    }
+  });
+  return {
+    text: _spT(ctx, 'order.qr_prompt', { item: eventDate + ' ' + itemName, btn: noteBtn }),
+    quickReplyItems: items
+  };
+}
+
 function _specialPlaceOrder(ctx, eventDate, rest) {
   var rec = _specialFindDate(eventDate);
   if (!rec) return { text: _spT(ctx, 'special.err_not_found', { date: eventDate }) };
@@ -11133,9 +11231,15 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
   var kids = SpecialSheet.getChildren ? SpecialSheet.getChildren(ctx.userId, ctx.userName, ctx.userName) : [];
   var soleKid = (kids && kids.length === 1) ? kids[0] : '';
   var menu = SpecialSheet.getSpecialItems(eventDate);
+
+  // 多位道親且未指定對象時，改以快捷按鈕詢問分配對象
+  if (parsed.length === 1 && !parsed[0].childName && kids && kids.length > 1) {
+    var match0 = _specialMatchItem(parsed[0].itemName, menu);
+    if (match0.item) return _specialChildPrompt(ctx, eventDate, match0.item.itemName, parsed[0].quantity, kids);
+  }
+  var selfNames = ['本人', '自己', _spT(ctx, 'common.self')];
   var okLines = [];
   var failLines = [];
-  var total = 0;
 
   parsed.forEach(function (oi) {
     var match = _specialMatchItem(oi.itemName, menu);
@@ -11153,7 +11257,7 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
       userId: ctx.userId,
       userName: ctx.userName,
       userNickname: ctx.userName,
-      childName: oi.childName || soleKid
+      childName: selfNames.indexOf(oi.childName) !== -1 ? '' : (oi.childName || soleKid)
     });
     if (!res.ok) {
       var key = res.reason === 'SOLD_OUT' ? 'special.fail_sold_out'
@@ -11163,21 +11267,19 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
       return;
     }
     var r = res.record;
-    total += r.subtotal;
     var kidTag = r.childName ? ' [' + r.childName + ']' : '';
     var leftTag = res.remaining !== null ? _spT(ctx, 'special.left_suffix', { left: res.remaining }) : '';
-    okLines.push('• ' + r.itemName + kidTag + ' x' + r.quantity + ' ($' + r.subtotal + ')' + leftTag);
+    okLines.push('• ' + r.itemName + kidTag + ' x' + r.quantity + leftTag);
   });
 
   var lines = [];
   if (okLines.length > 0) {
     lines.push(_spT(ctx, 'special.order_ok', { date: _specialDateLabel(eventDate) }));
     lines = lines.concat(okLines);
-    lines.push(_spT(ctx, 'special.order_total', { amount: total }));
     lines.push(_specialStatusLine(ctx, eventDate, rec));
     if (ctx.notify) {
       ctx.notify(_spT(ctx, 'special.notify_order', {
-        user: ctx.userName, date: _specialDateLabel(eventDate), items: okLines.join('\n'), amount: total
+        user: ctx.userName, date: _specialDateLabel(eventDate), items: okLines.join('\n')
       }));
     }
   }
@@ -11206,19 +11308,17 @@ function _specialItem(ctx, eventDate, rest) {
   if (!ctx.isOrganizer) return { text: _spT(ctx, 'special.err_organizer_only') };
   if (!_specialFindDate(eventDate)) return { text: _spT(ctx, 'special.err_not_found', { date: eventDate }) };
 
-  var m = String(rest || '').match(/^(.+?)\s+(\d+)(?:\s+(\d+))?$/);
+  var m = String(rest || '').match(/^(.+?)(?:\s+(\d+))?$/);
   if (!m) return { text: _spT(ctx, 'special.usage_item') };
   var name = m[1].trim();
-  var price = parseInt(m[2], 10);
-  var limit = m[3] !== undefined ? parseInt(m[3], 10) : 0;
-  SpecialSheet.saveSpecialItem(eventDate, name, price, limit);
+  var limit = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+  SpecialSheet.saveSpecialItem(eventDate, name, 0, limit);
 
   var sold = SpecialSheet.getSpecialSoldMap(eventDate)[name] || 0;
   return {
     text: _spT(ctx, 'special.item_ok', {
       date: eventDate,
       item: name,
-      price: price,
       limit: limit > 0 ? _spT(ctx, 'special.limit_n', { n: limit }) : _spT(ctx, 'special.unlimited'),
       sold: sold
     })
@@ -11258,7 +11358,6 @@ function _specialMyOrders(ctx) {
   orders.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   var lines = [_spT(ctx, 'special.my_title')];
   var lastDate = '';
-  var total = 0;
   orders.forEach(function (o) {
     if (o.date !== lastDate) {
       lastDate = o.date;
@@ -11267,11 +11366,8 @@ function _specialMyOrders(ctx) {
       lines.push('📅 ' + _specialDateLabel(o.date) + ' ' + _spT(ctx, isSpecialOrderingClosed(o.date, rec, ctx.refDate) ? 'special.status_closed' : 'special.status_open'));
     }
     var kidTag = o.childName ? ' [' + o.childName + ']' : '';
-    lines.push('  • ' + o.itemName + kidTag + ' x' + o.quantity + ' ($' + o.subtotal + ')');
-    total += Number(o.subtotal) || 0;
+    lines.push('  • ' + o.itemName + kidTag + ' x' + o.quantity);
   });
-  lines.push('');
-  lines.push(_spT(ctx, 'special.order_total', { amount: total }));
   return { text: lines.join('\n') };
 }
 
@@ -11310,9 +11406,9 @@ function _specialStatsForDate(ctx, eventDate) {
   summary.items.forEach(function (it) {
     var cap = limitOf[it.itemName] > 0 ? ' / ' + limitOf[it.itemName] : '';
     var buyers = it.buyers && it.buyers.length > 0 ? ' (' + it.buyers.join(', ') + ')' : '';
-    lines.push('  • ' + it.itemName + ' x ' + it.quantity + cap + ' ＝ $' + it.subtotal + buyers);
+    lines.push('  • ' + it.itemName + ' x ' + it.quantity + cap + buyers);
   });
-  lines.push(_spT(ctx, 'special.stats_total', { qty: summary.totalQuantity, amount: summary.totalAmount }));
+  lines.push(_spT(ctx, 'special.stats_total', { qty: summary.totalQuantity }));
   return lines.join('\n');
 }
 
@@ -11387,6 +11483,8 @@ function handleSpecialMenuCommand(ctx) {
     return _specialStats(ctx, statsDate);
   }
 
+  // 單獨的「工作」是今日工作指令，不屬於道場工作項目
+  if (/^(?:\/)?工作$/.test(text)) return null;
   var menuPrefix = _spPrefix('cmd.special_menu');
   var menuRe = new RegExp('^' + menuPrefix + '(?:\\s+' + dp + '(?:\\s+(.+))?)?$', 'i');
   if ((m = text.match(menuRe))) {
@@ -11400,7 +11498,7 @@ function handleSpecialMenuCommand(ctx) {
   }
 
   // Looks like a special-menu command but with unusable arguments: explain instead of falling through to regular ordering
-  if (new RegExp('^' + menuPrefix + '(?:\\s|$)', 'i').test(text)) {
+  if (!/^工作/.test(text) && new RegExp('^' + menuPrefix + '(?:\\s|$)', 'i').test(text)) {
     return { text: _specialUsage(ctx) };
   }
   return null;
@@ -11975,7 +12073,7 @@ function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
 
   if (users.length > 0) {
     lines.push('─────────────────');
-    lines.push('👤 每人應付明細與點餐內容：');
+    lines.push('👤 每人應付明細與登記內容：');
     users.forEach(function (u) {
       var userItems = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       lines.push('  • ' + (u.userName || '成員') + '：' + userItems + ' ＝ $' + (u.total || 0) + ' 元');
@@ -12081,7 +12179,7 @@ function isMenuPageCommand(text) {
     return true;
   }
   // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2", "thực đơn trang 2"
-  if (/(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
+  if (/(?:菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
     return true;
   }
   return false;
@@ -12334,7 +12432,7 @@ function handleTextMessage(event) {
     var previewPatterns = [
       /^(?:\/?)(?:我的本週訂單|本週訂單)$/i,
       /^(?:\/?)(?:我的訂單|查詢訂單|查單)$/i,
-      /^(?:\/?)(?:取消餐點|取消)(?:\s+餐點)?$/i,
+      /^(?:\/?)(?:取消餐點|取消登記|取消)(?:\s+餐點)?$/i,
       /^(?:\/?)(?:取消我的|取消)\s+.+$/i,
       /^(?:\/?)(?:本週統計|梯次統計)$/i,
       /^(?:\/?)(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i,
@@ -12452,6 +12550,9 @@ function handleTextMessage(event) {
       logStepTiming('OrderService.handleSpecialMenuCommand', specialStartedAt);
     }
     if (specialReply) {
+      if (specialReply.quickReplyItems) {
+        return LineModule.replyQuickReply(replyToken, specialReply.text, specialReply.quickReplyItems);
+      }
       return specialReply.flex
         ? LineModule.replyFlex(replyToken, specialReply.altText, specialReply.flex)
         : LineModule.replyText(replyToken, specialReply.text);
@@ -12459,7 +12560,7 @@ function handleTextMessage(event) {
   }
 
   // 2. WEEKLY SCHEDULE: 本週菜單 / 每週菜單 / 排程 / 本週排程
-  var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/i);
+  var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週工作|每週工作|本週排程|排程|週排程)$/i);
   if (weeklyRegex.test(text)) {
     var schedule = SheetModule.getWeeklySchedule();
     var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule, userLocale);
@@ -12477,7 +12578,7 @@ function handleTextMessage(event) {
     '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六', 'thứ bảy': '週六', 'thứ 7': '週六', 'thu bảy': '週六', 'thu bay': '週六', 'thu 7': '週六',
     '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日', 'chủ nhật': '週日', 'chu nhat': '週日', 'cn': '週日'
   };
-  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
     var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
     var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
@@ -12487,7 +12588,7 @@ function handleTextMessage(event) {
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
     var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
-    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單' + pageSuffix));
+    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 工作' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
@@ -12611,13 +12712,13 @@ function handleTextMessage(event) {
 
     var menuList = SheetModule.getMenuItems(todayDay, restaurant);
     var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList, todayDay);
-    return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
+    return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 工作', menuFlex);
   }
 
   // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X / thực đơn trang X
-  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|今日工作|菜單|工作|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
-  var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
+  var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|工作|今日工作|menu)$/i);
 
   if (menuPageMatch || standalonePageMatch || todayMenuRegex.test(text)) {
     var mMatch = menuPageMatch || standalonePageMatch;
@@ -12627,7 +12728,7 @@ function handleTextMessage(event) {
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
     var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale, reqPage);
     var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
-    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單' + pageSuffix));
+    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 工作' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, curAltText, curMenuFlex);
   }
 
@@ -12738,6 +12839,61 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, weeklyMsg);
   }
 
+  // 7.5 MY MONTH / NEXT MONTH: 我的本月登記 / 我的次月登記
+  var myMonthRegex = _getCmdRegex('cmd.my_month', /^(?:\/)?我的本月登記$/i);
+  var myNextMonthRegex = _getCmdRegex('cmd.my_next_month', /^(?:\/)?我的次月登記$/i);
+  var mmIsNext = myNextMonthRegex.test(text);
+  if (mmIsNext || myMonthRegex.test(text)) {
+    var mmDateParts = todayDate.split('-');
+    var mmYear = parseInt(mmDateParts[0], 10);
+    var mmMonthNum = parseInt(mmDateParts[1], 10) + (mmIsNext ? 1 : 0);
+    if (mmMonthNum > 12) {
+      mmMonthNum = 1;
+      mmYear += 1;
+    }
+    var mmKey = mmYear + '-' + ('0' + mmMonthNum).slice(-2);
+    var mmScope = _translateMsg(mmIsNext ? 'month.next' : 'month.this');
+    var mmRegular = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName) || [];
+    var mmSpecial = SheetModule.getUserOrders(userId, groupId, null, '特餐', userDisplayName) || [];
+    var mmOrders = mmRegular.concat(mmSpecial).filter(function (o) {
+      return String(o.date || '').slice(0, 7) === mmKey;
+    });
+    if (mmOrders.length === 0) {
+      return LineModule.replyText(replyToken, _translateMsg('month.empty', { scope: mmScope, month: mmKey }));
+    }
+
+    var mmRank = function (o) { return o.date + (o.dayOfWeek === '特餐' ? '|1' : '|0'); };
+    mmOrders.sort(function (a, b) {
+      var ka = mmRank(a);
+      var kb = mmRank(b);
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+
+    var mmLines = [_translateMsg('month.title', { scope: mmScope, month: mmKey })];
+    var mmLastGroup = '';
+    mmOrders.forEach(function (o) {
+      var isSpecialOrder = o.dayOfWeek === '特餐';
+      var groupKey = mmRank(o);
+      if (groupKey !== mmLastGroup) {
+        mmLastGroup = groupKey;
+        var groupLabel = isSpecialOrder ? _translateMsg('month.kind_special') : _displayDay(o.dayOfWeek || '');
+        mmLines.push('');
+        mmLines.push('📅 ' + o.date + (groupLabel ? '（' + groupLabel + '）' : ''));
+      }
+      var mmKidTag = o.childName ? ' [' + o.childName + ']' : '';
+      mmLines.push('  • ' + o.itemName + mmKidTag + ' x' + o.quantity);
+    });
+    mmLines.push('');
+    mmLines.push(_translateMsg('month.total', { count: mmOrders.length }));
+
+    var mmText = mmLines.join('\n');
+    // LINE 文字訊息上限 5000 字
+    if (mmText.length > 4800) {
+      mmText = mmText.slice(0, 4800) + '\n' + _translateMsg('month.truncated');
+    }
+    return LineModule.replyText(replyToken, mmText);
+  }
+
   // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
   var myOrderRegex = _getCmdRegex('cmd.my_order', /^(?:\/)?(?:我的訂單|查詢訂單|查單)$/i);
   if (myOrderRegex.test(text)) {
@@ -12746,7 +12902,7 @@ function handleTextMessage(event) {
       myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
     }
     if (!myOrders || myOrders.length === 0) {
-      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。' : _translateMsg('my_orders.no_today_orders'));
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」登記。' : _translateMsg('my_orders.no_today_orders'));
     }
     var isCutoff = isTodayCutoffPassed(todayDay);
     var statusTag = '';
@@ -12762,7 +12918,7 @@ function handleTextMessage(event) {
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var payTextToday = _formatPaymentText(payInfoToday, userLocale);
     var cutoffNotice = isCutoff
-      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
+      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日登記已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
       : '';
     var msg;
     if (userLocale === 'zh-TW') {
@@ -12782,7 +12938,7 @@ function handleTextMessage(event) {
       kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
     }
     var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles, userLocale);
-    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的小孩與用餐對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的小孩與用餐對象名冊');
+    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的道親與工作對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的道親與工作對象名冊');
     return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
@@ -12790,7 +12946,7 @@ function handleTextMessage(event) {
   var childrenSubmenuRegex = _getCmdRegex('cmd.children_menu', /^(?:\/)?(?:小孩選單|小孩管理|小孩幫助|孩子選單)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
     var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
-    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
+    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 道親與工作對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 道親與工作對象管理選單');
     return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
@@ -12838,12 +12994,12 @@ function handleTextMessage(event) {
     var rawList = setKidsMatch[1].trim();
     var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
     if (kidList.length === 0) {
-      return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的小孩姓名，例如：「設定小孩 大寶, 二寶」');
+      return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的道親姓名，例如：「設定道親 大寶, 二寶」');
     }
     if (SheetModule.setChildren) {
       SheetModule.setChildren(userId, userDisplayName, userDisplayName, kidList);
     }
-    return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
+    return LineModule.replyText(replyToken, '✅ 已為您成功設定道親名冊：' + kidList.join('、') + '！\n💡 下次登記點擊工作上的「+1 登記」按鈕，系統將會自動浮出道親捷徑讓您一秒直選！');
   }
 
   // 8.5.1c STANDALONE ADD KID: 新增小孩 / 加小孩 (無參數時提示引導與快捷按鈕)
@@ -12985,7 +13141,7 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '⚠️ 【' + dayArg + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
     }
     if (dayArg === todayDay && isTodayCutoffPassed(dayArg)) {
-      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+      return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法取消餐點。');
     }
     var cCount = SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, dayArg) : SheetModule.cancelOrder(null, groupId, null, null, dayArg);
     if (cCount > 0) {
@@ -13039,7 +13195,7 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '⚠️ 【' + targetDayReq + '】已超過日期，過去梯次的餐點無法取消喔！');
     }
     if (targetDayReq === todayDay && isTodayCutoffPassed(targetDayReq)) {
-      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+      return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法取消餐點。');
     }
     var warnFlex = FlexModule.createConfirmCancelFlex(
       '⚠️ 確認取消【' + targetDayReq + '】當日全體餐點？',
@@ -13069,7 +13225,7 @@ function handleTextMessage(event) {
   }
 
   // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
-  var cancelMenuRegex = _getCmdRegex('cmd.cancel', /^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/i);
+  var cancelMenuRegex = _getCmdRegex('cmd.cancel', /^(?:\/)?(?:取消餐點|取消登記|取消)(?:\s+餐點)?$/i);
   if (cancelMenuRegex.test(text.trim())) {
     var isOrgMenu = isUserOrganizer(userId, userDisplayName);
     // CRITICAL: The cancellation interactive menu is STRICTLY a personal cancellation menu!
@@ -13092,8 +13248,31 @@ function handleTextMessage(event) {
       });
     }
 
+    // 道場工作項目登記（dayOfWeek='特餐'）需明確查詢，並以「特餐 日期」分組
+    var specialLockMap = {};
+    activeOrders = (activeOrders || []).slice();
+    try {
+      var specialMine = SheetModule.getUserOrders(userId, groupId, null, '特餐', userDisplayName) || [];
+      var specialChecked = {};
+      specialMine.forEach(function (so) {
+        var spKey = '特餐 ' + so.date;
+        if (!specialChecked[so.date]) {
+          specialChecked[so.date] = true;
+          var spRec = SheetModule.getSpecialDate ? SheetModule.getSpecialDate(so.date) : null;
+          if (SpecialModule && SpecialModule.isSpecialOrderingClosed && SpecialModule.isSpecialOrderingClosed(so.date, spRec)) {
+            specialLockMap[spKey] = { locked: true, reason: '已截止' };
+          }
+        }
+        var copy = {};
+        for (var sk in so) { if (Object.prototype.hasOwnProperty.call(so, sk)) copy[sk] = so[sk]; }
+        copy.dayOfWeek = spKey;
+        copy.specialDate = so.date;
+        activeOrders.push(copy);
+      });
+    } catch (specialErr) {}
+
     if (!activeOrders || activeOrders.length === 0) {
-      return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+      return LineModule.replyText(replyToken, '您目前沒有任何可取消的登記項目喔！');
     }
     var lockMap = {};
     getDaysOfWeek().forEach(function (d) {
@@ -13103,7 +13282,35 @@ function handleTextMessage(event) {
         lockMap[d] = { locked: true, reason: '已截止' };
       }
     });
+    for (var lk in specialLockMap) { lockMap[lk] = specialLockMap[lk]; }
+
+    // Flex 卡片大小有上限：筆數過多時先略過已鎖定項目，再限制顯示筆數
+    var CANCEL_MENU_MAX_ITEMS = 30;
+    var cancelOmitted = 0;
+    if (activeOrders.length > CANCEL_MENU_MAX_ITEMS) {
+      var unlockedOrders = activeOrders.filter(function (o) {
+        return !(lockMap[o.dayOfWeek] && lockMap[o.dayOfWeek].locked);
+      });
+      if (unlockedOrders.length === 0) {
+        return LineModule.replyText(replyToken, '您的登記都已截止或過期，無法取消。若需異動請洽開單人。');
+      }
+      if (unlockedOrders.length > CANCEL_MENU_MAX_ITEMS) {
+        cancelOmitted = unlockedOrders.length - CANCEL_MENU_MAX_ITEMS;
+        unlockedOrders = unlockedOrders.slice(0, CANCEL_MENU_MAX_ITEMS);
+      }
+      activeOrders = unlockedOrders;
+    }
     var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu, userLocale);
+    if (cancelOmitted > 0 && cancelFlex.body && cancelFlex.body.contents) {
+      cancelFlex.body.contents.push({
+        type: 'text',
+        text: '尚有 ' + cancelOmitted + ' 筆未顯示，可輸入「取消 週X 品項」或「取消道場工作項目 日期 品名」。',
+        size: 'xs',
+        wrap: true,
+        color: '#888888',
+        margin: 'md'
+      });
+    }
     var cancelAltText = (userLocale === 'zh-TW') ? '🗑️ 請選擇欲取消的餐點' : (_translateMsg('cancel.alt_text') || '🗑️ 請選擇欲取消的餐點');
     return LineModule.replyFlex(replyToken, cancelAltText, cancelFlex);
   }
@@ -13264,11 +13471,11 @@ function handleTextMessage(event) {
         return LineModule.replyText(replyToken, '⚠️ 【' + cancelDay + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
       }
       if (cancelDay === todayDay && isTodayCutoffPassed(cancelDay)) {
-        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+        return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
     } else if (targetItem) {
       if (isTodayCutoffPassed(todayDay)) {
-        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+        return LineModule.replyText(replyToken, '⚠️ 今日登記已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
     }
 
@@ -13612,7 +13819,7 @@ function handleTextMessage(event) {
     }
 
     if (acceptedItems.length === 0) {
-      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
+      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放登記或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
     }
 
     var persistAcceptedOrders = function () {
@@ -14383,7 +14590,17 @@ function doPost(e) {
           logToSheet('MSG_RECV', msgText, safeSrcId);
         }
         var handleStartedAt = Date.now();
-        var result = handleTextMessage(event);
+        var result;
+        try {
+          result = handleTextMessage(event);
+        } catch (handleErr) {
+          // 讓使用者看得到錯誤原因，而不是完全沒回應
+          if (typeof console !== 'undefined') console.error('❌ handleTextMessage error:', handleErr);
+          if (typeof logToSheet === 'function') logToSheet('EXCEPTION', handleErr && handleErr.message, handleErr && handleErr.stack);
+          try {
+            replyText(event.replyToken, '⚠️ 系統錯誤：' + String((handleErr && handleErr.message) || handleErr).slice(0, 300));
+          } catch (replyErr) {}
+        }
         if (typeof logStepTiming === 'function') {
           logStepTiming('doPost.handleTextMessage', handleStartedAt, { text: String(msgText || '').slice(0, 20) });
         }        if (typeof console !== 'undefined') {

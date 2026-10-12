@@ -3485,7 +3485,7 @@ function addSpecialOrder(orderData) {
       childName: orderData.childName,
       itemName: item.itemName,
       quantity: qty,
-      price: item.price
+      price: 0
     });
     return { ok: true, record: record, item: item, remaining: remaining };
   } finally {

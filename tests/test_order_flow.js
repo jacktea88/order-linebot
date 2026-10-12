@@ -380,36 +380,52 @@ assert.strictEqual(lastReply.type, 'flex');
 assert.strictEqual(lastReply.altText, '指令說明');
 const helpBody = lastReply.flex.body.contents;
 const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
-assert.strictEqual(helpButtons.length, 10);
-assert.strictEqual(helpButtons[0].action.text, '本週菜單');
-assert.strictEqual(helpButtons[1].action.text, '菜單');
-assert.strictEqual(helpButtons[2].action.text, '小孩選單');
-assert.strictEqual(helpButtons[3].action.text, '我的訂單');
-assert.strictEqual(helpButtons[4].action.text, '我的本週訂單');
-assert.strictEqual(helpButtons[5].action.text, '取消餐點');
-assert.strictEqual(helpButtons[8].action.text, '結單');
-assert.strictEqual(helpButtons[9].action.text, '特定日期工作項目');
-console.log('  ✔ Buttonized Help card verified with 10 quick-action buttons.');
+assert.strictEqual(helpButtons.length, 5);
+assert.strictEqual(helpButtons[0].action.text, '道親選單');
+assert.strictEqual(helpButtons[1].action.text, '取消登記');
+assert.strictEqual(helpButtons[2].action.text, '我的本月登記');
+assert.strictEqual(helpButtons[2].action.label, '查本月');
+assert.strictEqual(helpButtons[3].action.text, '我的次月登記');
+assert.strictEqual(helpButtons[3].action.label, '查次月');
+assert.strictEqual(helpButtons[4].action.text, '道場工作項目');
+console.log('  ✔ Buttonized Help card verified with 5 quick-action buttons.');
+
+// 工作 aliases must reach the same handlers as 菜單
+for (const alias of ['本週工作', '每週工作', '本週菜單']) {
+  lastReply = null;
+  OrderModule.handleTextMessage({ replyToken: 'token_alias_w', source: { groupId: groupId, userId: 'user_alice' }, message: { type: 'text', text: alias } });
+  assert.ok(lastReply && lastReply.type === 'flex', alias + ' must return the weekly schedule');
+}
+for (const alias of ['今日工作', '工作', '菜單', '週一工作']) {
+  lastReply = null;
+  OrderModule.handleTextMessage({ replyToken: 'token_alias_d', source: { groupId: groupId, userId: 'user_alice' }, message: { type: 'text', text: alias } });
+  assert.ok(lastReply && lastReply.type === 'flex', alias + ' must return a menu flex');
+}
+console.log('  ✔ 工作 command aliases verified.');
+
+lastReply = null;
+OrderModule.handleTextMessage({ replyToken: 'token_alias_cancel', source: { groupId: groupId, userId: 'user_alice' }, message: { type: 'text', text: '取消登記' } });
+assert.ok(lastReply && (lastReply.type === 'flex' || lastReply.type === 'text'), '取消登記 must open the cancel menu');
 
 // Verify clicking the 小孩選單 button from Help invokes children submenu
 OrderModule.handleTextMessage({
   replyToken: 'token_help_kids_button',
   source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: helpButtons[2].action.text }
+  message: { type: 'text', text: helpButtons[0].action.text }
 });
 assert.strictEqual(lastReply.type, 'flex');
-assert.strictEqual(lastReply.altText, '👶 小孩與用餐對象管理選單');
+assert.strictEqual(lastReply.altText, '👶 道親與工作對象管理選單');
 const kidsSubmenuBody = lastReply.flex.body.contents;
 const kidsSubmenuButtons = kidsSubmenuBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
 assert.strictEqual(kidsSubmenuButtons.length, 4);
-assert.strictEqual(kidsSubmenuButtons[0].action.text, '我的小孩');
+assert.strictEqual(kidsSubmenuButtons[0].action.text, '我的道親');
 assert.strictEqual(kidsSubmenuButtons[0].action.label, '看名單');
-assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩');
+assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定道親');
 assert.strictEqual(kidsSubmenuButtons[1].action.label, '批次登記');
-assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩');
-assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增小孩');
-assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩');
-assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除小孩');
+assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增道親');
+assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增道親');
+assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除道親');
+assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除道親');
 console.log('  ✔ Children submenu flex card triggered from 小孩選單 button with 4 interactive actions verified.');
 
 // Verify clicking 設定小孩 triggers prompt and quick replies
@@ -419,14 +435,14 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: kidsSubmenuButtons[1].action.text }
 });
 assert.strictEqual(lastReply.type, 'quick_reply');
-assert.ok(lastReply.text.includes('多位小孩請使用逗號「,」分隔'));
+assert.ok(lastReply.text.includes('多位道親請使用逗號「,」分隔'));
 assert.strictEqual(lastReply.quickReply.items.length, 2);
 assert.strictEqual(lastReply.quickReply.items[0].action.type, 'postback');
 assert.strictEqual(lastReply.quickReply.items[0].action.inputOption, 'openKeyboard');
-assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '設定小孩 ');
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '設定道親 ');
 assert.strictEqual(lastReply.quickReply.items[1].action.type, 'message');
-assert.strictEqual(lastReply.quickReply.items[1].action.text, '小孩選單');
-console.log('  ✔ Standalone 設定小孩 returns comma prompt and openKeyboard quick reply verified.');
+assert.strictEqual(lastReply.quickReply.items[1].action.text, '道親選單');
+console.log('  ✔ Standalone 設定道親 returns comma prompt and openKeyboard quick reply verified.');
 
 // Verify clicking 新增小孩 triggers prompt and quick replies without 班級
 OrderModule.handleTextMessage({
@@ -440,10 +456,10 @@ assert.ok(!lastReply.text.includes('班級'));
 assert.strictEqual(lastReply.quickReply.items.length, 2);
 assert.strictEqual(lastReply.quickReply.items[0].action.type, 'postback');
 assert.strictEqual(lastReply.quickReply.items[0].action.inputOption, 'openKeyboard');
-assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增小孩 ');
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增道親 ');
 assert.strictEqual(lastReply.quickReply.items[1].action.type, 'message');
-assert.strictEqual(lastReply.quickReply.items[1].action.text, '小孩選單');
-console.log('  ✔ Standalone 新增小孩 returns prompt without 班級 and openKeyboard quick reply verified.');
+assert.strictEqual(lastReply.quickReply.items[1].action.text, '道親選單');
+console.log('  ✔ Standalone 新增道親 returns prompt without 班級 and openKeyboard quick reply verified.');
 
 // Step A: View Weekly Schedule
 console.log('  [Step A] Member queries weekly schedule (本週菜單)');
@@ -476,7 +492,7 @@ const firstItemRow = itemBoxes[0];
 const buttonComponent = firstItemRow.contents.find(c => c.type === 'button');
 assert.ok(buttonComponent, 'Each item row must have a button');
 assert.strictEqual(buttonComponent.action.type, 'message');
-assert.strictEqual(buttonComponent.action.label, '+1 點餐');
+assert.strictEqual(buttonComponent.action.label, '+1 登記');
 assert.strictEqual(buttonComponent.action.text, '週二 日式厚切豬排飯+1');
 
 // Simulate user clicking the button (LINE client automatically sends buttonComponent.action.text)
@@ -487,7 +503,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: buttonComponent.action.text }
 });
 assert.strictEqual(lastReply.type, 'quick_reply', 'Member without kids clicking +1 gets quick reply');
-assert.strictEqual(lastReply.quickReply.items[0].action.label, '✏️ 手動輸入小孩名字');
+assert.strictEqual(lastReply.quickReply.items[0].action.label, '✏️ 手動輸入道親名字');
 assert.strictEqual(lastReply.quickReply.items[1].action.label, '👤 本人');
 
 // Carol taps [👤 本人]
@@ -591,8 +607,8 @@ assert.ok(lastReply.text.includes('【週二】'));
 assert.ok(lastReply.text.includes('【週三】'));
 console.log('  ✔ Alice weekly orders verified.');
 
-// Step F-1: Alice requests cancel menu by clicking or typing "取消餐點"
-console.log('  [Step F-1] Alice opens interactive cancel menu (取消餐點)');
+// Step F-1: Alice requests cancel menu by clicking or typing "取消登記" (舊指令「取消餐點」仍可用)
+console.log('  [Step F-1] Alice opens interactive cancel menu (取消餐點 alias)');
 OrderModule.handleTextMessage({
   replyToken: 'token_cancel_menu',
   source: { groupId: groupId, userId: 'user_alice' },
@@ -603,6 +619,15 @@ assert.strictEqual(lastReply.altText, '🗑️ 請選擇欲取消的餐點');
 const cancelBody = lastReply.flex.body.contents;
 assert.ok(cancelBody.length > 0);
 console.log('  ✔ Interactive cancel menu card verified.');
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_menu_new',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消登記' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, '🗑️ 請選擇欲取消的餐點');
+console.log('  ✔ 取消登記 opens the cancel menu.');
 
 // Step F-2: Alice cancels Tuesday order
 console.log('  [Step F-2] Alice cancels Tuesday order (取消 週二 全部)');
@@ -846,7 +871,7 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'text');
 assert.ok(lastReply.text.includes('🔒[已截止]'));
-assert.ok(lastReply.text.includes('今日點餐已超過截止時間'));
+assert.ok(lastReply.text.includes('今日登記已超過截止時間'));
 
 // Interactive cancel menu reflects lock status
 OrderModule.handleTextMessage({
@@ -1075,8 +1100,9 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '取消餐點' }
 });
 var aliceMenuJson = JSON.stringify(lastReply.flex);
-assert.ok(aliceMenuJson.includes('個人進行中訂單'));
+assert.ok(aliceMenuJson.includes('個人登記項目'));
 assert.ok(aliceMenuJson.includes('取消我的【週五】餐點'));
+assert.ok(!aliceMenuJson.includes('$'), 'Cancel menu must not show amounts');
 assert.ok(!aliceMenuJson.includes('開單人管理專區'));
 
 SheetModule.addOrder({ userId: 'user_boss', groupId: groupId, itemName: '古早味紅茶', quantity: 1, price: 25, userName: '老闆', userNickname: '老闆', dayOfWeek: '週五' });
@@ -1087,7 +1113,7 @@ OrderModule.handleTextMessage({
 });
 var bossMenuJson = JSON.stringify(lastReply.flex);
 assert.ok(bossMenuJson.includes('(開單人)'));
-assert.ok(bossMenuJson.includes('個人進行中訂單'));
+assert.ok(bossMenuJson.includes('個人登記項目'));
 assert.ok(bossMenuJson.includes('古早味紅茶'));
 assert.ok(bossMenuJson.includes('開單人管理專區'));
 assert.ok(bossMenuJson.includes('取消當日所有餐點'));
@@ -1275,7 +1301,7 @@ assert.strictEqual(defaultSourceUrl, 'https://tinyurl.com/4c92wtee', 'Default SO
 
 var helpCard = FlexModule.createHelpFlex(defaultSourceUrl);
 var helpJson = JSON.stringify(helpCard);
-assert.ok(helpJson.includes('"text":"今日統計"'), 'Help card button for 今日統計 must explicitly dispatch 今日統計 command');
+assert.ok(helpJson.includes('"text":"道場工作項目"'), 'Help card button for 道場工作項目 must dispatch its command');
 assert.ok(helpJson.includes('服務授權：AGPL-3.0 原始碼 https://tinyurl.com/4c92wtee'), 'Help card footer must display AGPL license and source code link');
 
 // Test dynamic SOURCE_CODE_URL update from Config (AGPL-3.0 compliance requirement)
@@ -1487,7 +1513,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '設定小孩 寶一, 寶二' }
 });
 assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('成功設定小孩名冊'));
+assert.ok(lastReply.text.includes('成功設定道親名冊'));
 assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['寶一', '寶二']);
 
 // Reset Alice kids back to 大寶, 二寶
@@ -1500,7 +1526,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '小孩選單' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-assert.strictEqual(lastReply.altText, '👶 小孩與用餐對象管理選單');
+assert.strictEqual(lastReply.altText, '👶 道親與工作對象管理選單');
 
 OrderModule.handleTextMessage({
   replyToken: 'token_add_kid_empty',
@@ -1511,7 +1537,7 @@ assert.strictEqual(lastReply.type, 'quick_reply');
 assert.ok(lastReply.text.includes('備註'));
 assert.ok(!lastReply.text.includes('班級'));
 assert.strictEqual(lastReply.quickReply.items.length, 2);
-assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增小孩 ');
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增道親 ');
 
 // Alice triggers '刪除小孩' and receives Quick Reply shortcut buttons for her registered kids plus '取消刪除'
 OrderModule.handleTextMessage({
@@ -1520,13 +1546,13 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '刪除小孩' }
 });
 assert.strictEqual(lastReply.type, 'quick_reply');
-assert.ok(lastReply.text.includes('請選擇欲刪除的小孩'));
+assert.ok(lastReply.text.includes('請選擇欲刪除的道親'));
 const delQrItems = lastReply.quickReply.items;
 assert.strictEqual(delQrItems.length, 3, 'Must have 3 shortcut buttons: 大寶, 二寶, 取消刪除');
 assert.strictEqual(delQrItems[0].action.label, '🗑️ 大寶');
-assert.strictEqual(delQrItems[0].action.text, '刪除小孩 大寶');
+assert.strictEqual(delQrItems[0].action.text, '刪除道親 大寶');
 assert.strictEqual(delQrItems[1].action.label, '🗑️ 二寶');
-assert.strictEqual(delQrItems[1].action.text, '刪除小孩 二寶');
+assert.strictEqual(delQrItems[1].action.text, '刪除道親 二寶');
 assert.strictEqual(delQrItems[2].action.label, '❌ 取消刪除');
 assert.strictEqual(delQrItems[2].action.text, '取消刪除');
 
@@ -1547,7 +1573,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '刪除小孩' }
 });
 assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('尚未登記任何小孩'));
+assert.ok(lastReply.text.includes('尚未登記任何道親'));
 
 // Alice deletes 大寶 via shortcut button action
 OrderModule.handleTextMessage({
@@ -1556,7 +1582,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: delQrItems[0].action.text }
 });
 assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('已成功移除小孩「大寶」'));
+assert.ok(lastReply.text.includes('已成功移除道親「大寶」'));
 assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['二寶']);
 
 // Restore Alice's children back to ['大寶', '二寶'] for downstream tests
@@ -1575,8 +1601,8 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '+1 招牌三寶飯' }
 });
 assert.strictEqual(lastReply.type, 'quick_reply', 'Ordering without child designation for parent must trigger Quick Reply');
-assert.ok(lastReply.text.includes('分配給哪位小孩或自己'), 'Prompt text guides user to pick recipient');
-assert.ok(lastReply.text.includes('手動輸入小孩名字'), 'Prompt text specifies manual child input button');
+assert.ok(lastReply.text.includes('分配給哪位道親或自己'), 'Prompt text guides user to pick recipient');
+assert.ok(lastReply.text.includes('手動輸入道親名字'), 'Prompt text specifies manual child input button');
 const qrItems = lastReply.quickReply.items;
 assert.strictEqual(qrItems.length, 4, 'Must have 4 items: 大寶, 二寶, 本人, 手動輸入小孩名字');
 assert.strictEqual(qrItems[0].action.label, '👦 大寶');
@@ -1585,7 +1611,7 @@ assert.strictEqual(qrItems[1].action.label, '👦 二寶');
 assert.strictEqual(qrItems[1].action.text, '+1 招牌三寶飯 (二寶)');
 assert.strictEqual(qrItems[2].action.label, '👤 本人');
 assert.strictEqual(qrItems[2].action.text, '+1 招牌三寶飯 (本人)');
-assert.strictEqual(qrItems[3].action.label, '✏️ 手動輸入小孩名字');
+assert.strictEqual(qrItems[3].action.label, '✏️ 手動輸入道親名字');
 assert.strictEqual(qrItems[3].action.inputOption, 'openKeyboard');
 assert.strictEqual(qrItems[3].action.fillInText, '+1 招牌三寶飯 ()');
 
@@ -1596,15 +1622,15 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '+1 脆皮燒肉飯' }
 });
 assert.strictEqual(lastReply.type, 'quick_reply', 'Member without registered kids triggers quick reply to input child name or choose self');
-assert.strictEqual(lastReply.text, I18nModule.t('order.qr_prompt_no_kids', { item: '脆皮燒肉飯', btn: '✏️ 手動輸入小孩名字', self: '本人' }));
+assert.strictEqual(lastReply.text, I18nModule.t('order.qr_prompt_no_kids', { item: '脆皮燒肉飯', btn: '✏️ 手動輸入道親名字', self: '本人' }));
 const bobQrItems = lastReply.quickReply.items;
 assert.strictEqual(bobQrItems.length, 3, 'Must have 3 items: 手動輸入小孩名字, 本人, 小孩選單');
-assert.strictEqual(bobQrItems[0].action.label, '✏️ 手動輸入小孩名字');
+assert.strictEqual(bobQrItems[0].action.label, '✏️ 手動輸入道親名字');
 assert.strictEqual(bobQrItems[0].action.inputOption, 'openKeyboard');
 assert.strictEqual(bobQrItems[0].action.fillInText, '+1 脆皮燒肉飯 ()');
 assert.strictEqual(bobQrItems[1].action.label, '👤 本人');
 assert.strictEqual(bobQrItems[1].action.text, '+1 脆皮燒肉飯 (本人)');
-assert.strictEqual(bobQrItems[2].action.label, '👶 小孩選單');
+assert.strictEqual(bobQrItems[2].action.label, '👶 道親選單');
 
 // Bob confirms as self
 OrderModule.handleTextMessage({
@@ -2339,7 +2365,7 @@ var helpCardNoLang = lastReply.flex;
 var helpButtonsNoLang = helpCardNoLang.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(helpButtonsNoLang.length, 10, 'Help card must have 10 buttons when user locale is disabled');
+assert.strictEqual(helpButtonsNoLang.length, 5, 'Help card must have 5 buttons when user locale is disabled');
 assert.strictEqual(helpButtonsNoLang.includes('切換語言'), false);
 
 // 14.5 Multi-Locale / User-Locale Enabled System (ENABLE_USER_LOCALE = true)
@@ -2356,7 +2382,7 @@ var helpCardWithLang = lastReply.flex;
 var helpButtonsWithLang = helpCardWithLang.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(helpButtonsWithLang.length, 11, 'Help card must have 11 buttons when user locale is enabled');
+assert.strictEqual(helpButtonsWithLang.length, 6, 'Help card must have 6 buttons when user locale is enabled');
 assert.strictEqual(helpButtonsWithLang.includes('切換語言'), true);
 
 // User queries '設定語言' -> returns language select Flex card with 7 language options
@@ -2393,8 +2419,8 @@ assert.strictEqual(lastReply.altText, 'Meal Ordering Bot Guide');
 var engHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(engHelpButtons[0], 'Weekly');
-assert.strictEqual(engHelpButtons[10], 'Language');
+assert.strictEqual(engHelpButtons[0], 'Kids Menu');
+assert.strictEqual(engHelpButtons[5], 'Language');
 
 // User sets language to Japanese via Postback
 OrderModule.handlePostbackEvent({
@@ -2419,8 +2445,8 @@ assert.strictEqual(lastReply.altText, 'お弁当注文コマンド案内');
 var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(jaHelpButtons[0], '今週確認');
-assert.strictEqual(jaHelpButtons[10], '言語設定');
+assert.strictEqual(jaHelpButtons[0], '子供メニュー');
+assert.strictEqual(jaHelpButtons[5], '言語設定');
 
 // 14.6 Verify all help menu button commands across all 7 supported locales
 // (zh-TW, en, ja, ko, th, id, vi) successfully trigger handlers
@@ -2429,7 +2455,7 @@ SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
 allLocales.forEach(function (loc) {
   var helpFlex = FlexModule.createHelpFlex('https://tinyurl.com/4c92wtee', loc);
   var rows = helpFlex.body.contents;
-  assert.strictEqual(rows.length, 11, 'Each locale must render 11 command buttons in help flex');
+  assert.strictEqual(rows.length, 6, 'Each locale must render 6 command buttons in help flex');
 
   rows.forEach(function (row, btnIdx) {
     var cmdText = row.contents[1].action.text;
@@ -2732,7 +2758,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '週六+1 招牌排骨飯' }
 });
 assert.ok(lastReply && lastReply.type === 'text', 'Should reject weekend order when disabled');
-assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'), 'Rejection text should indicate not open or cutoff');
+assert.ok(lastReply.text.includes('尚未開放登記或已經截止'), 'Rejection text should indicate not open or cutoff');
 assert.strictEqual(SheetModule._mockStore.Orders.length, 2, 'No new order should be added for Saturday');
 
 // D. Saturday night when IS_ORDERING_OPEN = 'false'
@@ -2744,7 +2770,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '+1 招牌排骨飯' }
 });
 assert.ok(lastReply && lastReply.type === 'text');
-assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
+assert.ok(lastReply.text.includes('尚未開放登記或已經截止'));
 assert.strictEqual(SheetModule._mockStore.Orders.length, 2, 'No new order when ordering is closed');
 
 // 2. Weekend Enabled mode (ALLOW_WEEKEND_ORDERING = 'true')
@@ -2828,7 +2854,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '週六+1 班尼迪克蛋' }
 });
 assert.ok(lastReply && lastReply.type === 'text', 'Should reject Saturday order after cutoff');
-assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
+assert.ok(lastReply.text.includes('尚未開放登記或已經截止'));
 assert.strictEqual(SheetModule._mockStore.Orders.length, 3, 'No order should be added after Saturday cutoff');
 
 // But ordering for Sunday or Monday after Saturday cutoff still succeeds!
@@ -3118,9 +3144,8 @@ assert.strictEqual(lastReply.altText, 'Hướng dẫn lệnh đặt cơm trưa')
 var viHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(viHelpButtons[0], 'Tuần này');
-assert.strictEqual(viHelpButtons[1], 'Xem thực đơn');
-assert.strictEqual(viHelpButtons[10], 'Đổi ngôn ngữ');
+assert.strictEqual(viHelpButtons[0], 'Menu Bé');
+assert.strictEqual(viHelpButtons[5], 'Đổi ngôn ngữ');
 
 // 17.5 Vietnamese Day Aliases & Menu Querying
 SheetModule.setWeeklyScheduleDay('週一', 'Tiệm Cơm Việt', '10:30');
@@ -3311,11 +3336,12 @@ const spSold = function (name) { return SheetModule.getSpecialSoldMap(SP_DATE)[n
 assert.ok(spSend('sp_alice', '新增特餐 ' + SP_DATE + ' 感恩大餐').text.includes('只有主辦人'));
 assert.strictEqual(SheetModule.getSpecialDates().length, 0);
 var spAdd = spSend('sp_boss', '新增特餐 ' + SP_DATE + ' 感恩大餐');
-assert.ok(spAdd.text.includes('已建立特定日期工作項目'));
+assert.ok(spAdd.text.includes('已建立道場工作項目'));
 assert.ok(spAdd.text.includes('2026-10-01 23:59'), 'Default cutoff must be event date - 14 days at 23:59');
-assert.ok(spSend('sp_alice', '特餐品項 ' + SP_DATE + ' 火雞套餐 680 5').text.includes('只有主辦人'));
-assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 火雞套餐 680 5').text.includes('已儲存'));
-assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 沙拉 120').text.includes('不限名額'));
+assert.ok(spSend('sp_alice', '特餐品項 ' + SP_DATE + ' 火雞套餐 5').text.includes('只有主辦人'));
+assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 火雞套餐 5').text.includes('已儲存'));
+assert.ok(spSend('sp_boss', '特餐品項 ' + SP_DATE + ' 沙拉').text.includes('不限名額'));
+assert.ok(!lastReply.text.includes('$'), 'Item saved message must not show a price');
 assert.strictEqual(SheetModule.getSpecialItems(SP_DATE).length, 2);
 
 // 19.2 Browsing: date list and menu with remaining counts
@@ -3325,15 +3351,17 @@ var spMenu = spSend('sp_alice', '特餐 ' + SP_DATE);
 assert.strictEqual(spMenu.type, 'flex');
 var spMenuJson = JSON.stringify(spMenu.flex);
 assert.ok(spMenuJson.includes('剩餘 5/5'));
-assert.ok(spMenuJson.includes('特餐 ' + SP_DATE + ' 火雞套餐+1'));
+assert.ok(!spMenuJson.includes('$'), 'Special menu must not show prices');
+assert.ok(spMenuJson.includes('工作 ' + SP_DATE + ' 火雞套餐+1'));
 
 // 19.3 Quantity limit is shared across everyone; no partial fill
 assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('登記成功'));
-assert.ok(lastReply.text.includes('剩餘 3 份'));
+assert.ok(lastReply.text.includes('剩餘 3 人'));
+assert.ok(!lastReply.text.includes('$') && !lastReply.text.includes('合計'), 'Special order reply must not show amounts');
 assert.strictEqual(SheetModule._mockStore.Orders[0].dayOfWeek, '特餐');
 assert.strictEqual(SheetModule._mockStore.Orders[0].date, SP_DATE);
-assert.strictEqual(SheetModule._mockStore.Orders[0].price, 680);
-assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+4').text.includes('僅剩 3 份'));
+assert.strictEqual(SheetModule._mockStore.Orders[0].price, 0);
+assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+4').text.includes('僅剩 3 人'));
 assert.strictEqual(spSold('火雞套餐'), 2, 'Over-quantity order must not be partially filled');
 assert.ok(spSend('sp_bob', '特餐 ' + SP_DATE + ' 火雞套餐+3').text.includes('登記成功'));
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 火雞套餐+1').text.includes('已售完'));
@@ -3346,14 +3374,62 @@ assert.strictEqual(SheetModule.getGroupOrders(SP_GROUP, null, '週一').length, 
 assert.strictEqual(SheetModule.getGroupOrders(SP_GROUP, SP_DATE, '特餐').length, 2);
 
 // 19.5 Cancelling frees stock; unlimited items skip the stock check
+var spCancelMenu = spSend('sp_alice', '取消登記');
+assert.strictEqual(spCancelMenu.type, 'flex', '取消登記 lists 道場工作 registrations');
+var spCancelJson = JSON.stringify(spCancelMenu.flex);
+assert.ok(spCancelJson.includes('取消道場工作項目 ' + SP_DATE + ' 火雞套餐'));
+assert.ok(spCancelJson.includes('取消道場工作項目 ' + SP_DATE + ' 全部'));
+assert.strictEqual(spSend('sp_zed', '取消登記').type, 'text', 'No registrations -> plain notice');
+
+// Many registrations must still produce a card small enough for LINE
+for (var bulk = 0; bulk < 120; bulk++) {
+  SheetModule._mockStore.Orders.push({
+    orderId: 'ord_bulk_' + bulk, timestamp: '2026-09-09 10:00:00', date: '2026-09-09',
+    dayOfWeek: ['週一', '週二', '週三', '週四', '週五'][bulk % 5], groupId: SP_GROUP, userId: 'sp_bulk',
+    userName: 'sp_bulk', userNickname: 'sp_bulk', childName: '', itemName: '大量測試便當' + bulk,
+    quantity: 1, price: 100, subtotal: 100, status: 'ACTIVE', paid: 'UNPAID'
+  });
+}
+var spBulkMenu = spSend('sp_bulk', '取消登記');
+assert.strictEqual(spBulkMenu.type, 'flex');
+assert.ok(JSON.stringify(spBulkMenu.flex).length < 50000, 'Cancel card must stay under the LINE size limit');
+assert.ok(JSON.stringify(spBulkMenu.flex).includes('尚有'), 'Omitted items are explained');
+SheetModule._mockStore.Orders = SheetModule._mockStore.Orders.filter(function (o) { return o.userId !== 'sp_bulk'; });
+
+// Flex text size scaling (CONFIG.FLEX_TEXT_SIZE_STEPS)
+var scaleSrc = [{ type: 'flex', altText: 'x', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [
+  { type: 'text', text: 'a', size: 'xxs' }, { type: 'text', text: 'b', size: 'xl' }, { type: 'text', text: 'c' },
+  { type: 'icon', url: 'u', size: 'xl' }] } } }];
+var scaleBefore = JSON.stringify(scaleSrc);
+var scaled = LineModule._scaleFlexMessages(scaleSrc)[0].contents.body.contents;
+assert.deepStrictEqual([scaled[0].size, scaled[1].size, scaled[2].size, scaled[3].size], ['sm', '3xl', 'xl', 'xl'], 'Text sizes +2, icon untouched');
+assert.strictEqual(JSON.stringify(scaleSrc), scaleBefore, 'Scaling must not mutate the source');
+assert.strictEqual(LineModule._scaleFlexMessages([{ type: 'text', text: 't' }])[0].text, 't');
+ConfigModule.CONFIG.FLEX_TEXT_SIZE_STEPS = 0;
+assert.strictEqual(LineModule._scaleFlexMessages(scaleSrc), scaleSrc, 'Steps 0 disables scaling');
+ConfigModule.CONFIG.FLEX_TEXT_SIZE_STEPS = 2;
+assert.ok(JSON.stringify(LineModule._scaleFlexMessages([{ type: 'flex', altText: 'x', contents: spBulkMenu.flex }])).length < 50000, 'Scaled cancel card stays under the LINE size limit');
 assert.ok(spSend('sp_alice', '取消特餐 ' + SP_DATE + ' 火雞套餐').text.includes('已取消'));
 assert.strictEqual(spSold('火雞套餐'), 3);
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 火雞套餐+2').text.includes('登記成功'));
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 沙拉+50').text.includes('登記成功'));
 assert.ok(!lastReply.text.includes('剩餘'));
+
+// 19.5b Multiple registered children: unassigned special order prompts a child quick reply
+SheetModule.setChildren('sp_dan', 'Dan', 'Dan', ['大寶', '二寶']);
+var spPrompt = spSend('sp_dan', '特餐 ' + SP_DATE + ' 沙拉+1');
+assert.strictEqual(spPrompt.type, 'quick_reply');
+assert.strictEqual(spPrompt.quickReply.items.length, 4, '2 children + self + manual input');
+assert.strictEqual(spPrompt.quickReply.items[0].action.text, '工作 ' + SP_DATE + ' 沙拉+1 (大寶)');
+assert.strictEqual(SheetModule.getUserOrders('sp_dan', SP_GROUP, SP_DATE, '特餐').length, 0, 'No order before choosing');
+assert.ok(spSend('sp_dan', spPrompt.quickReply.items[0].action.text).text.includes('[大寶]'));
+assert.ok(spSend('sp_dan', spPrompt.quickReply.items[2].action.text).text.includes('登記成功'));
+assert.strictEqual(SheetModule.getUserOrders('sp_dan', SP_GROUP, SP_DATE, '特餐').filter(function (o) { return o.childName === '本人'; }).length, 0, 'Self choice stores no child name');
 assert.ok(spSend('sp_carol', '特餐 ' + SP_DATE + ' 不存在的菜+1').text.includes('找不到品項'));
 assert.ok(spSend('sp_bob', '我的特餐').text.includes('火雞套餐'));
+assert.ok(!lastReply.text.includes('$'));
 assert.ok(spSend('sp_bob', '特餐統計 ' + SP_DATE).text.includes('火雞套餐 x 5 / 5'));
+assert.ok(!lastReply.text.includes('$'), 'Special stats must not show amounts');
 
 // 19.6 Editable cutoff
 assert.ok(spSend('sp_alice', '特餐截止 ' + SP_DATE + ' 2026-09-30 18:00').text.includes('只有主辦人'));
@@ -3377,9 +3453,26 @@ globalThis._mockCurrentDate = new Date('2026-10-02T09:00:00+08:00');
 assert.ok(spSend('sp_alice', '特餐 ' + SP_DATE + ' 沙拉+1').text.includes('已截止登記'));
 assert.strictEqual(OrderModule.parseOrderText('特餐 沙拉+1').length >= 0, true);
 
+// 19.7b Monthly registration commands (本月 / 次月)
+var spThisMonth = spSend('sp_carol', '我的本月登記');
+assert.strictEqual(spThisMonth.type, 'text');
+assert.ok(spThisMonth.text.includes('我的本月登記（2026-10）') && spThisMonth.text.includes('火雞套餐 x2') && spThisMonth.text.includes('沙拉 x50'), 'This month lists special registrations');
+assert.ok(spThisMonth.text.includes('道場工作') && !spThisMonth.text.includes('$'), 'Month list marks 道場工作 and shows no amounts');
+assert.ok(spSend('sp_carol', '我的次月登記').text.includes('次月（2026-11）尚未有任何登記'), 'Next month empty notice');
+assert.ok(spSend('sp_zed', '我的本月登記').text.includes('尚未有任何登記'), 'User without registrations gets empty notice');
+globalThis._mockCurrentDate = new Date('2026-09-20T09:00:00+08:00');
+assert.ok(spSend('sp_carol', '我的本月登記').text.includes('尚未有任何登記'), 'Other month registrations are excluded');
+assert.ok(spSend('sp_carol', '我的次月登記').text.includes('火雞套餐 x2'), 'Next month lists October registrations');
+globalThis._mockCurrentDate = new Date('2026-12-05T09:00:00+08:00');
+assert.ok(spSend('sp_carol', '我的次月登記').text.includes('次月（2027-01）'), 'December rolls over to next year');
+globalThis._mockCurrentDate = new Date('2026-10-02T09:00:00+08:00');
+
 // 19.8 Invalid input
 assert.ok(spSend('sp_alice', '特餐 2026-13-45').text.includes('日期格式'));
 assert.ok(spSend('sp_alice', '特餐 2027-01-01').text.includes('找不到'));
+assert.ok(spSend('sp_alice', '工作 2027-01-01').text.includes('找不到'), '工作 DATE is a special-menu command');
+assert.ok(JSON.stringify(spSend('sp_alice', '工作 ' + SP_DATE).flex).includes('工作 ' + SP_DATE), '工作 DATE shows the menu');
+assert.strictEqual(handleSpecialMenuCommand({ text: '工作' }), null, 'bare 工作 stays the daily-work command');
 
 // Clean up
 SheetModule._mockStore.Orders = [];

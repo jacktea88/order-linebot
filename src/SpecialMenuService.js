@@ -244,6 +244,30 @@ function _specialShowMenu(ctx, eventDate, page) {
   };
 }
 
+function _specialChildPrompt(ctx, eventDate, itemName, qty, kids) {
+  var base = '工作 ' + eventDate + ' ' + itemName + '+' + (qty || 1);
+  var selfLabel = _spT(ctx, 'common.self');
+  var noteBtn = _spT(ctx, 'order.qr_note_btn');
+  var items = kids.map(function (k) {
+    return { type: 'action', action: { type: 'message', label: ('👦 ' + k).slice(0, 20), text: base + ' (' + k + ')' } };
+  });
+  items.push({ type: 'action', action: { type: 'message', label: '👤 ' + selfLabel, text: base + ' (' + selfLabel + ')' } });
+  items.push({
+    type: 'action',
+    action: {
+      type: 'postback',
+      label: noteBtn.slice(0, 20),
+      data: 'action=prompt_note&item=' + encodeURIComponent(itemName) + '&qty=' + (qty || 1),
+      inputOption: 'openKeyboard',
+      fillInText: base + ' ()'
+    }
+  });
+  return {
+    text: _spT(ctx, 'order.qr_prompt', { item: eventDate + ' ' + itemName, btn: noteBtn }),
+    quickReplyItems: items
+  };
+}
+
 function _specialPlaceOrder(ctx, eventDate, rest) {
   var rec = _specialFindDate(eventDate);
   if (!rec) return { text: _spT(ctx, 'special.err_not_found', { date: eventDate }) };
@@ -257,9 +281,15 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
   var kids = SpecialSheet.getChildren ? SpecialSheet.getChildren(ctx.userId, ctx.userName, ctx.userName) : [];
   var soleKid = (kids && kids.length === 1) ? kids[0] : '';
   var menu = SpecialSheet.getSpecialItems(eventDate);
+
+  // 多位道親且未指定對象時，改以快捷按鈕詢問分配對象
+  if (parsed.length === 1 && !parsed[0].childName && kids && kids.length > 1) {
+    var match0 = _specialMatchItem(parsed[0].itemName, menu);
+    if (match0.item) return _specialChildPrompt(ctx, eventDate, match0.item.itemName, parsed[0].quantity, kids);
+  }
+  var selfNames = ['本人', '自己', _spT(ctx, 'common.self')];
   var okLines = [];
   var failLines = [];
-  var total = 0;
 
   parsed.forEach(function (oi) {
     var match = _specialMatchItem(oi.itemName, menu);
@@ -277,7 +307,7 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
       userId: ctx.userId,
       userName: ctx.userName,
       userNickname: ctx.userName,
-      childName: oi.childName || soleKid
+      childName: selfNames.indexOf(oi.childName) !== -1 ? '' : (oi.childName || soleKid)
     });
     if (!res.ok) {
       var key = res.reason === 'SOLD_OUT' ? 'special.fail_sold_out'
@@ -287,21 +317,19 @@ function _specialPlaceOrder(ctx, eventDate, rest) {
       return;
     }
     var r = res.record;
-    total += r.subtotal;
     var kidTag = r.childName ? ' [' + r.childName + ']' : '';
     var leftTag = res.remaining !== null ? _spT(ctx, 'special.left_suffix', { left: res.remaining }) : '';
-    okLines.push('• ' + r.itemName + kidTag + ' x' + r.quantity + ' ($' + r.subtotal + ')' + leftTag);
+    okLines.push('• ' + r.itemName + kidTag + ' x' + r.quantity + leftTag);
   });
 
   var lines = [];
   if (okLines.length > 0) {
     lines.push(_spT(ctx, 'special.order_ok', { date: _specialDateLabel(eventDate) }));
     lines = lines.concat(okLines);
-    lines.push(_spT(ctx, 'special.order_total', { amount: total }));
     lines.push(_specialStatusLine(ctx, eventDate, rec));
     if (ctx.notify) {
       ctx.notify(_spT(ctx, 'special.notify_order', {
-        user: ctx.userName, date: _specialDateLabel(eventDate), items: okLines.join('\n'), amount: total
+        user: ctx.userName, date: _specialDateLabel(eventDate), items: okLines.join('\n')
       }));
     }
   }
@@ -330,19 +358,17 @@ function _specialItem(ctx, eventDate, rest) {
   if (!ctx.isOrganizer) return { text: _spT(ctx, 'special.err_organizer_only') };
   if (!_specialFindDate(eventDate)) return { text: _spT(ctx, 'special.err_not_found', { date: eventDate }) };
 
-  var m = String(rest || '').match(/^(.+?)\s+(\d+)(?:\s+(\d+))?$/);
+  var m = String(rest || '').match(/^(.+?)(?:\s+(\d+))?$/);
   if (!m) return { text: _spT(ctx, 'special.usage_item') };
   var name = m[1].trim();
-  var price = parseInt(m[2], 10);
-  var limit = m[3] !== undefined ? parseInt(m[3], 10) : 0;
-  SpecialSheet.saveSpecialItem(eventDate, name, price, limit);
+  var limit = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+  SpecialSheet.saveSpecialItem(eventDate, name, 0, limit);
 
   var sold = SpecialSheet.getSpecialSoldMap(eventDate)[name] || 0;
   return {
     text: _spT(ctx, 'special.item_ok', {
       date: eventDate,
       item: name,
-      price: price,
       limit: limit > 0 ? _spT(ctx, 'special.limit_n', { n: limit }) : _spT(ctx, 'special.unlimited'),
       sold: sold
     })
@@ -382,7 +408,6 @@ function _specialMyOrders(ctx) {
   orders.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   var lines = [_spT(ctx, 'special.my_title')];
   var lastDate = '';
-  var total = 0;
   orders.forEach(function (o) {
     if (o.date !== lastDate) {
       lastDate = o.date;
@@ -391,11 +416,8 @@ function _specialMyOrders(ctx) {
       lines.push('📅 ' + _specialDateLabel(o.date) + ' ' + _spT(ctx, isSpecialOrderingClosed(o.date, rec, ctx.refDate) ? 'special.status_closed' : 'special.status_open'));
     }
     var kidTag = o.childName ? ' [' + o.childName + ']' : '';
-    lines.push('  • ' + o.itemName + kidTag + ' x' + o.quantity + ' ($' + o.subtotal + ')');
-    total += Number(o.subtotal) || 0;
+    lines.push('  • ' + o.itemName + kidTag + ' x' + o.quantity);
   });
-  lines.push('');
-  lines.push(_spT(ctx, 'special.order_total', { amount: total }));
   return { text: lines.join('\n') };
 }
 
@@ -434,9 +456,9 @@ function _specialStatsForDate(ctx, eventDate) {
   summary.items.forEach(function (it) {
     var cap = limitOf[it.itemName] > 0 ? ' / ' + limitOf[it.itemName] : '';
     var buyers = it.buyers && it.buyers.length > 0 ? ' (' + it.buyers.join(', ') + ')' : '';
-    lines.push('  • ' + it.itemName + ' x ' + it.quantity + cap + ' ＝ $' + it.subtotal + buyers);
+    lines.push('  • ' + it.itemName + ' x ' + it.quantity + cap + buyers);
   });
-  lines.push(_spT(ctx, 'special.stats_total', { qty: summary.totalQuantity, amount: summary.totalAmount }));
+  lines.push(_spT(ctx, 'special.stats_total', { qty: summary.totalQuantity }));
   return lines.join('\n');
 }
 
@@ -511,6 +533,8 @@ function handleSpecialMenuCommand(ctx) {
     return _specialStats(ctx, statsDate);
   }
 
+  // 單獨的「工作」是今日工作指令，不屬於道場工作項目
+  if (/^(?:\/)?工作$/.test(text)) return null;
   var menuPrefix = _spPrefix('cmd.special_menu');
   var menuRe = new RegExp('^' + menuPrefix + '(?:\\s+' + dp + '(?:\\s+(.+))?)?$', 'i');
   if ((m = text.match(menuRe))) {
@@ -524,7 +548,7 @@ function handleSpecialMenuCommand(ctx) {
   }
 
   // Looks like a special-menu command but with unusable arguments: explain instead of falling through to regular ordering
-  if (new RegExp('^' + menuPrefix + '(?:\\s|$)', 'i').test(text)) {
+  if (!/^工作/.test(text) && new RegExp('^' + menuPrefix + '(?:\\s|$)', 'i').test(text)) {
     return { text: _specialUsage(ctx) };
   }
   return null;

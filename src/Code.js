@@ -491,7 +491,17 @@ function doPost(e) {
           logToSheet('MSG_RECV', msgText, safeSrcId);
         }
         var handleStartedAt = Date.now();
-        var result = handleTextMessage(event);
+        var result;
+        try {
+          result = handleTextMessage(event);
+        } catch (handleErr) {
+          // 讓使用者看得到錯誤原因，而不是完全沒回應
+          if (typeof console !== 'undefined') console.error('❌ handleTextMessage error:', handleErr);
+          if (typeof logToSheet === 'function') logToSheet('EXCEPTION', handleErr && handleErr.message, handleErr && handleErr.stack);
+          try {
+            replyText(event.replyToken, '⚠️ 系統錯誤：' + String((handleErr && handleErr.message) || handleErr).slice(0, 300));
+          } catch (replyErr) {}
+        }
         if (typeof logStepTiming === 'function') {
           logStepTiming('doPost.handleTextMessage', handleStartedAt, { text: String(msgText || '').slice(0, 20) });
         }        if (typeof console !== 'undefined') {

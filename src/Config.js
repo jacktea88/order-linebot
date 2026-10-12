@@ -97,7 +97,10 @@ var CONFIG = {
    * Optional custom salt for HASHED_ID mode.
    * If left blank, falls back to CHANNEL_SECRET or default internal salt.
    */
-  HASH_SALT: ''
+  HASH_SALT: '',
+
+  /** Flex 文字字級上調級數（0 = 不調整；xxs→xs→sm→md→lg→xl→xxl→3xl→4xl→5xl）。 */
+  FLEX_TEXT_SIZE_STEPS: 2
 };
 
 /**

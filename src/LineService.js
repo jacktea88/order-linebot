@@ -268,6 +268,47 @@ function _authHeaders() {
  * Public API — Reply messages
  * ------------------------------------------------------------------ */
 
+var _FLEX_TEXT_SIZES = ['xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl'];
+
+/**
+ * _scaleFlexNode — 複製 flex 節點並上調所有文字元件字級；未指定 size 者視為 md。
+ * @param {*} node - Flex 節點、陣列或其他值。
+ * @param {number} steps - 上調級數。
+ * @returns {*}
+ */
+function _scaleFlexNode(node, steps) {
+  if (Array.isArray(node)) {
+    return node.map(function (n) { return _scaleFlexNode(n, steps); });
+  }
+  if (!node || typeof node !== 'object') return node;
+  var copy = {};
+  Object.keys(node).forEach(function (k) { copy[k] = _scaleFlexNode(node[k], steps); });
+  if (node.type === 'text') {
+    var idx = _FLEX_TEXT_SIZES.indexOf(node.size || 'md');
+    if (idx >= 0) {
+      copy.size = _FLEX_TEXT_SIZES[Math.min(idx + steps, _FLEX_TEXT_SIZES.length - 1)];
+    }
+  }
+  return copy;
+}
+
+/**
+ * _scaleFlexMessages — 對 type 為 flex 的訊息套用 CONFIG.FLEX_TEXT_SIZE_STEPS 字級調整。
+ * @param {Array<Object>} messages - LINE 訊息陣列。
+ * @returns {Array<Object>}
+ */
+function _scaleFlexMessages(messages) {
+  var steps = (typeof CONFIG !== 'undefined' && CONFIG && Number(CONFIG.FLEX_TEXT_SIZE_STEPS)) || 0;
+  if (steps <= 0 || !Array.isArray(messages)) return messages;
+  return messages.map(function (m) {
+    if (!m || m.type !== 'flex' || !m.contents) return m;
+    var out = {};
+    Object.keys(m).forEach(function (k) { out[k] = m[k]; });
+    out.contents = _scaleFlexNode(m.contents, steps);
+    return out;
+  });
+}
+
 /**
  * replyMessages — Send a reply message to LINE via the Reply API.
  * @param {string} replyToken - Reply token from the webhook event.
@@ -278,7 +319,7 @@ function replyMessages(replyToken, messages) {
   var headers = _authHeaders();
   var payload = {
     replyToken: replyToken,
-    messages: messages
+    messages: _scaleFlexMessages(messages)
   };
   return _httpPostJson(CONFIG.LINE_REPLY_URL, headers, payload);
 }
@@ -304,11 +345,17 @@ function replyText(replyToken, text) {
  * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
 function replyFlex(replyToken, altText, flexContents) {
-  return replyMessages(replyToken, [{
+  var res = replyMessages(replyToken, [{
     type: 'flex',
     altText: altText,
     contents: flexContents
   }]);
+  // LINE 拒絕卡片時（同步的 GAS 環境）改回文字，避免完全沒回應
+  if (res && typeof res.then !== 'function' && res.statusCode >= 400 && res.statusCode < 500) {
+    var detail = res.data ? (res.data.message || '') + (res.data.details ? ' ' + JSON.stringify(res.data.details) : '') : '';
+    return replyText(replyToken, '⚠️ ' + altText + '\n（卡片顯示失敗 HTTP ' + res.statusCode + '）' + detail.slice(0, 300));
+  }
+  return res;
 }
 
 /**
@@ -342,7 +389,7 @@ function pushMessages(to, messages) {
   var headers = _authHeaders();
   var payload = {
     to: to,
-    messages: messages
+    messages: _scaleFlexMessages(messages)
   };
   var pushUrl = (CONFIG && CONFIG.LINE_PUSH_URL) ? CONFIG.LINE_PUSH_URL : 'https://api.line.me/v2/bot/message/push';
   return _httpPostJson(pushUrl, headers, payload);
@@ -615,6 +662,7 @@ function validateSignature(bodyString, signature, channelSecret) {
       // Internal helpers exposed for Node.js testing.
       _httpPostJson: _httpPostJson,
       _httpGetJson: _httpGetJson,
+      _scaleFlexMessages: _scaleFlexMessages,
       _isGasRuntime: _isGasRuntime
     };
   }
