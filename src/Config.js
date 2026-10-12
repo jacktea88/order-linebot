@@ -154,11 +154,11 @@ function isDevOrderPreviewMode() {
 }
 
 /**
- * isDevOrderCacheMode — Short-term cache flag for order query/summary paths.
- * This only makes sense together with DEV_ORDER_PREVIEW_MODE so it stays test-only.
+ * isOrderQueryCacheEnabled — Short-term cache for order query/summary paths.
+ * Enabled by default; set ORDER_QUERY_CACHE_ENABLED=false to bypass the cache.
  */
-function isDevOrderCacheMode() {
-  return getConfigProperty('DEV_ORDER_CACHE_MODE', 'false') === 'true';
+function isOrderQueryCacheEnabled() {
+  return String(getConfigProperty('ORDER_QUERY_CACHE_ENABLED', 'true')).toLowerCase() !== 'false';
 }
 
 /**
@@ -332,7 +332,7 @@ function showScriptPropertiesDiagnostics(keys) {
   g.getConfigProperty = getConfigProperty;
   g.isDevFastMode = isDevFastMode;
   g.isDevOrderPreviewMode = isDevOrderPreviewMode;
-  g.isDevOrderCacheMode = isDevOrderCacheMode;
+  g.isOrderQueryCacheEnabled = isOrderQueryCacheEnabled;
   g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
   g.isStepTimingEnabled = isStepTimingEnabled;
   g.logStepTiming = logStepTiming;
@@ -346,7 +346,7 @@ function showScriptPropertiesDiagnostics(keys) {
       getConfigProperty: getConfigProperty,
       isDevFastMode: isDevFastMode,
       isDevOrderPreviewMode: isDevOrderPreviewMode,
-      isDevOrderCacheMode: isDevOrderCacheMode,
+      isOrderQueryCacheEnabled: isOrderQueryCacheEnabled,
       isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
       isStepTimingEnabled: isStepTimingEnabled,
       logStepTiming: logStepTiming,

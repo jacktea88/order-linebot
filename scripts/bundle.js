@@ -72,4 +72,5 @@ fileOrder.forEach(file => {
 
 const distPath = path.join(distDir, 'Code.gs');
 fs.writeFileSync(distPath, bundledContent, 'utf8');
+fs.copyFileSync(path.join(__dirname, '..', 'appsscript.json'), path.join(distDir, 'appsscript.json'));
 console.log(`Successfully bundled ${fileOrder.length} files into ${distPath} (${(bundledContent.length / 1024).toFixed(1)} KB)`);

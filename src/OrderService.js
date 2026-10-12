@@ -805,14 +805,18 @@ function matchMenuItem(rawItemName, menuList) {
  * Main Message Dispatcher
  */
 function handleTextMessage(event) {
+  var handleStartedAt = Date.now();
   var replyToken = event.replyToken;
   var text = (event.message && event.message.text ? event.message.text : (event.text || '')).trim();
   var source = event.source || {};
   var userId = source.userId || 'anonymous';
   var groupId = source.groupId || source.roomId || '';
+  var todayStartedAt = Date.now();
   var todayDate = getTodayDateString();
   var todayDay = getTodayDayOfWeek();
-
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('OrderService.getToday', todayStartedAt);
+  }
   if (!text) return null;
 
   // Resolve user display name (nickname) early
@@ -838,10 +842,14 @@ function handleTextMessage(event) {
 
   // Resolve user effective locale
   var userLocale = 'zh-TW';
+  var localeStartedAt = Date.now();
   if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getEffectiveLocale) {
     userLocale = I18nModule.getEffectiveLocale(userId, userDisplayName);
   } else if (typeof getEffectiveLocale === 'function') {
     userLocale = getEffectiveLocale(userId, userDisplayName);
+  }
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('OrderService.getEffectiveLocale', localeStartedAt);
   }
 
   var _translateMsg = function (k, p) {
@@ -989,6 +997,7 @@ function handleTextMessage(event) {
 
   // 1-2. SPECIAL-DATE MENUS: 特餐菜單 / 特餐 日期 品名+數量 / 取消特餐 / 新增特餐 ...
   if (SpecialModule && SpecialModule.handleSpecialMenuCommand) {
+    var specialStartedAt = Date.now();
     var specialReply = SpecialModule.handleSpecialMenuCommand({
       text: text,
       userId: userId,
@@ -1000,6 +1009,9 @@ function handleTextMessage(event) {
       parseOrderText: parseOrderText,
       notify: notifyOrganizer
     });
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.handleSpecialMenuCommand', specialStartedAt);
+    }
     if (specialReply) {
       return specialReply.flex
         ? LineModule.replyFlex(replyToken, specialReply.altText, specialReply.flex)
@@ -1991,7 +2003,11 @@ function handleTextMessage(event) {
     // If ordering items have no child assigned and caller has registered children in Children tab,
     // pop up Quick Reply floating buttons for children selection plus openKeyboard note button.
     var allNoChild = orderItems.every(function (oi) { return !oi.childName; });
+    var childrenStartedAt = Date.now();
     var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.getChildren', childrenStartedAt);
+    }
 
     // 當 User 只有一個小孩的時候，預設餐點分配給該小孩，免去重複確認
     if (userKids && userKids.length === 1) {
@@ -2116,6 +2132,7 @@ function handleTextMessage(event) {
 
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
     var acceptedItems = [];
+    var acceptStartedAt = Date.now();
 
     orderItems.forEach(function (oi) {
       var day = oi.dayOfWeek || todayDay;
@@ -2150,6 +2167,10 @@ function handleTextMessage(event) {
         price: matched.price
       });
     });
+
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.acceptItems', acceptStartedAt, { items: acceptedItems.length });
+    }
 
     if (acceptedItems.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
@@ -2192,6 +2213,9 @@ function handleTextMessage(event) {
       }, 0);
       var ackText = '✅ 已收到您的訂單，系統處理中：\n' + ackLines.join('\n') + '\n💰 預估總計：$' + ackTotal + ' 元';
       var ackReplyStartedAt = Date.now();
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.preAck', handleStartedAt);
+      }
       LineModule.replyText(replyToken, ackText);
       if (typeof logStepTiming === 'function') {
         logStepTiming('OrderService.replyText.ack', ackReplyStartedAt, {

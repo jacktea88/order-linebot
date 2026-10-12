@@ -3,3 +3,4 @@ node_modules/
 *.log
 .env
 .clasp.json
+src/I18n-bak.js

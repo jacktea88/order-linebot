@@ -368,8 +368,14 @@ function _hasRequiredSheets() {
     CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS
   ];
 
+  var existingNames = {};
+  var existingSheets = ss.getSheets();
+  for (var s = 0; s < existingSheets.length; s++) {
+    existingNames[existingSheets[s].getName()] = true;
+  }
+
   for (var i = 0; i < requiredSheets.length; i++) {
-    if (!ss.getSheetByName(requiredSheets[i])) {
+    if (!existingNames[requiredSheets[i]]) {
       return false;
     }
   }
@@ -386,7 +392,20 @@ function ensureSheetsInitialized() {
     return true;
   }
   var initFlag = getConfigProperty('SHEETS_INITIALIZED', 'false') === 'true';
+  var verifyCache = null;
+  if (initFlag && typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+    try { verifyCache = CacheService.getScriptCache(); } catch (e) {}
+  }
+  // Skip the per-request sheet scan; a deleted sheet is auto-repaired within the TTL window.
+  if (verifyCache) {
+    try {
+      if (verifyCache.get('sheets:verified')) return true;
+    } catch (e) {}
+  }
   if (initFlag && _hasRequiredSheets()) {
+    if (verifyCache) {
+      try { verifyCache.put('sheets:verified', '1', 360); } catch (e) {}
+    }
     return true;
   }
 
@@ -400,6 +419,7 @@ function ensureSheetsInitialized() {
 }
 
 function doPost(e) {
+  var doPostStartedAt = Date.now();
   try {
     if (typeof resetStepTimingLogs === 'function') {
       resetStepTimingLogs();
@@ -445,8 +465,11 @@ function doPost(e) {
     }
 
     // Ensure database sheets exist on first run or when required sheets are missing
+    var ensureStartedAt = Date.now();
     ensureSheetsInitialized();
-
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('doPost.ensureSheetsInitialized', ensureStartedAt);
+    }
     // Process all events
     for (var i = 0; i < events.length; i++) {
       var event = events[i];
@@ -458,7 +481,8 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
-        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode())) {
+        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode()) &&
+            getConfigProperty('ENABLE_MSG_RECV_LOGS', 'false') === 'true') {
           var safeSrcId = srcId;
           // If source is a direct 1-on-1 user, de-identify using getEffectiveUserId if available
           if (event.source && event.source.type === 'user' && typeof getEffectiveUserId === 'function') {
@@ -466,8 +490,11 @@ function doPost(e) {
           }
           logToSheet('MSG_RECV', msgText, safeSrcId);
         }
+        var handleStartedAt = Date.now();
         var result = handleTextMessage(event);
-        if (typeof console !== 'undefined') {
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('doPost.handleTextMessage', handleStartedAt, { text: String(msgText || '').slice(0, 20) });
+        }        if (typeof console !== 'undefined') {
           console.log('📤 [處理結果]: ' + JSON.stringify(result));
         }
       }
@@ -499,6 +526,9 @@ function doPost(e) {
     }
     return _createResponse(200, { status: 'error', error: err.message });
   } finally {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('doPost.total', doPostStartedAt);
+    }
     if (typeof flushStepTimingLogs === 'function') {
       flushStepTimingLogs();
     }
@@ -859,6 +889,37 @@ function setup() {
   return success;
 }
 
+/**
+ * Rebuild all script caches from the sheets.
+ * Run from the editor after manual sheet edits; also used as the 5-minute warm-up trigger.
+ */
+function warmCaches() {
+  var startedAt = Date.now();
+  if (typeof isGasRuntime !== 'function' || !isGasRuntime()) {
+    return true;
+  }
+
+  invalidateSheetServiceCaches();
+  invalidateOrderQueryCaches();
+  invalidateChildrenCache();
+  _bumpNamedCacheVersion('localePref');
+  var cache = _getOrderQueryScriptCache();
+  if (cache) {
+    try { cache.removeAll(['spreadsheetTimeZone', 'sheets:verified']); } catch (e) {}
+  }
+
+  ensureSheetsInitialized();
+  getConfigValue('DEFAULT_LOCALE', '');
+  getWeeklySchedule();
+  getMenuItems();
+  getSpreadsheetTimeZone();
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('Caches rebuilt in ' + (Date.now() - startedAt) + ' ms');
+  }
+  return true;
+}
+
 // Dual export for testing
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -876,6 +937,7 @@ function setup() {
   g.doGet = doGet;
   g.doPost = doPost;
   g.setup = setup;
+  g.warmCaches = warmCaches;
   g.testLineConnection = testLineConnection;
   g.testHelpMessage = testHelpMessage;
   g.testUberEatsImport = testUberEatsImport;
@@ -894,6 +956,7 @@ function setup() {
       doGet: doGet,
       doPost: doPost,
       setup: setup,
+      warmCaches: warmCaches,
       testLineConnection: testLineConnection,
       testHelpMessage: testHelpMessage,
       testUberEatsImport: testUberEatsImport,

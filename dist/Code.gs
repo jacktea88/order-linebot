@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-10-02T22:08:42+08:00
+ * Automatically generated on: 2026-10-12T14:50:50+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -170,11 +170,11 @@ function isDevOrderPreviewMode() {
 }
 
 /**
- * isDevOrderCacheMode — Short-term cache flag for order query/summary paths.
- * This only makes sense together with DEV_ORDER_PREVIEW_MODE so it stays test-only.
+ * isOrderQueryCacheEnabled — Short-term cache for order query/summary paths.
+ * Enabled by default; set ORDER_QUERY_CACHE_ENABLED=false to bypass the cache.
  */
-function isDevOrderCacheMode() {
-  return getConfigProperty('DEV_ORDER_CACHE_MODE', 'false') === 'true';
+function isOrderQueryCacheEnabled() {
+  return String(getConfigProperty('ORDER_QUERY_CACHE_ENABLED', 'true')).toLowerCase() !== 'false';
 }
 
 /**
@@ -348,7 +348,7 @@ function showScriptPropertiesDiagnostics(keys) {
   g.getConfigProperty = getConfigProperty;
   g.isDevFastMode = isDevFastMode;
   g.isDevOrderPreviewMode = isDevOrderPreviewMode;
-  g.isDevOrderCacheMode = isDevOrderCacheMode;
+  g.isOrderQueryCacheEnabled = isOrderQueryCacheEnabled;
   g.isDevFlexStaticCacheMode = isDevFlexStaticCacheMode;
   g.isStepTimingEnabled = isStepTimingEnabled;
   g.logStepTiming = logStepTiming;
@@ -362,7 +362,7 @@ function showScriptPropertiesDiagnostics(keys) {
       getConfigProperty: getConfigProperty,
       isDevFastMode: isDevFastMode,
       isDevOrderPreviewMode: isDevOrderPreviewMode,
-      isDevOrderCacheMode: isDevOrderCacheMode,
+      isOrderQueryCacheEnabled: isOrderQueryCacheEnabled,
       isDevFlexStaticCacheMode: isDevFlexStaticCacheMode,
       isStepTimingEnabled: isStepTimingEnabled,
       logStepTiming: logStepTiming,
@@ -3418,24 +3418,27 @@ function _formatTaipeiTimestamp(date) {
 var _sheetServiceRuntimeCache = {
   configMap: null,
   weeklySchedule: null,
-  menuRows: null
+  menuRows: null,
+  orderQueryVersion: null,
+  spreadsheet: null
 };
 
 var _sheetServiceCacheConfig = {
-  configMapTtlSeconds: 60,
-  weeklyScheduleTtlSeconds: 60,
-  menuRowsTtlSeconds: 60
+  configMapTtlSeconds: 360,
+  weeklyScheduleTtlSeconds: 360,
+  menuRowsTtlSeconds: 360
 };
 
+var _sheetServiceCachePrefix = null;
+
+// Derived from properties only, so building cache keys never touches the spreadsheet.
 function _getSheetServiceCachePrefix() {
   if (!isGasRuntime()) return 'sheetsvc:mock';
-  try {
-    var ss = getSpreadsheet();
-    if (ss && typeof ss.getId === 'function') {
-      return 'sheetsvc:' + ss.getId();
-    }
-  } catch (e) {}
-  return 'sheetsvc:default';
+  if (_sheetServiceCachePrefix) return _sheetServiceCachePrefix;
+  var ssId = '';
+  try { ssId = String(getConfigProperty('SPREADSHEET_ID', '') || '').trim(); } catch (e) {}
+  _sheetServiceCachePrefix = 'sheetsvc:' + (ssId || 'active');
+  return _sheetServiceCachePrefix;
 }
 
 function _getSheetServiceScriptCache() {
@@ -3495,42 +3498,48 @@ function resetSheetServiceRuntimeCache() {
   _sheetServiceRuntimeCache.configMap = null;
   _sheetServiceRuntimeCache.weeklySchedule = null;
   _sheetServiceRuntimeCache.menuRows = null;
+  _sheetServiceRuntimeCache.orderQueryVersion = null;
+  _sheetServiceRuntimeCache.spreadsheet = null;
 }
 
 var _orderQueryCacheConfig = {
   ttlSeconds: 60
 };
 
-function _isDevOrderQueryCacheEnabled() {
-  var previewMode = (typeof isDevOrderPreviewMode === 'function') && isDevOrderPreviewMode();
-  var cacheMode = (typeof isDevOrderCacheMode === 'function') && isDevOrderCacheMode();
-  return previewMode && cacheMode;
+var _orderQueryVersionKey = 'orderQuery:version';
+var _orderQueryVersionTtlSeconds = 21600;
+
+function _isOrderQueryCacheEnabled() {
+  return (typeof isOrderQueryCacheEnabled === 'function') && isOrderQueryCacheEnabled();
 }
 
 function _getOrderQueryCacheVersion() {
-  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
-    return '0';
+  if (_sheetServiceRuntimeCache.orderQueryVersion) {
+    return _sheetServiceRuntimeCache.orderQueryVersion;
   }
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return '0';
   try {
-    var props = PropertiesService.getScriptProperties();
-    var current = String(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0').trim();
-    if (!current) current = '0';
+    var current = cache.get(_orderQueryVersionKey);
+    if (!current) {
+      current = String(Date.now());
+      cache.put(_orderQueryVersionKey, current, _orderQueryVersionTtlSeconds);
+    }
+    _sheetServiceRuntimeCache.orderQueryVersion = current;
     return current;
   } catch (e) {
     return '0';
   }
 }
 
+// Timestamp version avoids a read-modify-write; if the key is evicted, a fresh timestamp orphans old entries.
 function _bumpOrderQueryCacheVersion() {
-  if (!isGasRuntime() || typeof PropertiesService === 'undefined') {
-    return '0';
-  }
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return '0';
   try {
-    var props = PropertiesService.getScriptProperties();
-    var current = parseInt(props.getProperty('ORDER_QUERY_CACHE_VERSION') || '0', 10);
-    if (!isFinite(current)) current = 0;
-    var next = String(current + 1);
-    props.setProperty('ORDER_QUERY_CACHE_VERSION', next);
+    var next = String(Date.now());
+    cache.put(_orderQueryVersionKey, next, _orderQueryVersionTtlSeconds);
+    _sheetServiceRuntimeCache.orderQueryVersion = next;
     return next;
   } catch (e) {
     return '0';
@@ -3561,7 +3570,7 @@ function _getOrderQueryCacheKey(scope, parts) {
 }
 
 function _readOrderQueryCache(scope, parts) {
-  if (!_isDevOrderQueryCacheEnabled()) return null;
+  if (!_isOrderQueryCacheEnabled()) return null;
   var cache = _getOrderQueryScriptCache();
   if (!cache) return null;
   try {
@@ -3573,7 +3582,7 @@ function _readOrderQueryCache(scope, parts) {
 }
 
 function _writeOrderQueryCache(scope, parts, value) {
-  if (!_isDevOrderQueryCacheEnabled()) return;
+  if (!_isOrderQueryCacheEnabled()) return;
   var cache = _getOrderQueryScriptCache();
   if (!cache) return;
   try {
@@ -3606,11 +3615,19 @@ function getSpreadsheet() {
   if (!isGasRuntime()) {
     return null;
   }
-  var ssId = getConfigProperty('SPREADSHEET_ID', '');
-  if (ssId && ssId.trim() !== '') {
-    return SpreadsheetApp.openById(ssId);
+  if (_sheetServiceRuntimeCache.spreadsheet) {
+    return _sheetServiceRuntimeCache.spreadsheet;
   }
-  return SpreadsheetApp.getActiveSpreadsheet();
+  var ssId = getConfigProperty('SPREADSHEET_ID', '');
+  var openStartedAt = Date.now();
+  var ss = (ssId && ssId.trim() !== '')
+    ? SpreadsheetApp.openById(ssId)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('SheetService.getSpreadsheet.open', openStartedAt, { byId: !!(ssId && ssId.trim() !== '') });
+  }
+  _sheetServiceRuntimeCache.spreadsheet = ss;
+  return ss;
 }
 
 var _cachedSpreadsheetTimeZone = null;
@@ -3629,12 +3646,26 @@ function getSpreadsheetTimeZone() {
     return _cachedSpreadsheetTimeZone;
   }
   if (isGasRuntime()) {
+    // A cached value avoids the first spreadsheet RPC, which carries a large warm-up cost.
+    var tzCache = _getOrderQueryScriptCache();
+    if (tzCache) {
+      try {
+        var cachedTz = tzCache.get('spreadsheetTimeZone');
+        if (cachedTz) {
+          _cachedSpreadsheetTimeZone = cachedTz;
+          return _cachedSpreadsheetTimeZone;
+        }
+      } catch (e) {}
+    }
     try {
       var ss = getSpreadsheet();
       if (ss && typeof ss.getSpreadsheetTimeZone === 'function') {
         var ssTz = ss.getSpreadsheetTimeZone();
         if (ssTz && ssTz.trim() !== '') {
           _cachedSpreadsheetTimeZone = ssTz;
+          if (tzCache) {
+            try { tzCache.put('spreadsheetTimeZone', ssTz, 21600); } catch (e) {}
+          }
           return _cachedSpreadsheetTimeZone;
         }
       }
@@ -3934,10 +3965,6 @@ function getConfigValue(key, defaultValue) {
     }
     return defaultValue;
   }
-  var ss = getSpreadsheet();
-  if (!ss) return defaultValue;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CONFIG);
-  if (!sheet) return defaultValue;
   if (_sheetServiceRuntimeCache.configMap) {
     return _sheetServiceRuntimeCache.configMap.hasOwnProperty(targetKey)
       ? _sheetServiceRuntimeCache.configMap[targetKey]
@@ -3949,6 +3976,11 @@ function getConfigValue(key, defaultValue) {
     _sheetServiceRuntimeCache.configMap = cachedConfigMap;
     return cachedConfigMap.hasOwnProperty(targetKey) ? cachedConfigMap[targetKey] : defaultValue;
   }
+
+  var ss = getSpreadsheet();
+  if (!ss) return defaultValue;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CONFIG);
+  if (!sheet) return defaultValue;
 
   var data = sheet.getDataRange().getValues();
   var configMap = {};
@@ -4223,10 +4255,6 @@ function getWeeklySchedule() {
     });
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
-  if (!sheet) return [];
   if (_sheetServiceRuntimeCache.weeklySchedule) {
     return _sheetServiceRuntimeCache.weeklySchedule.map(function (item) {
       return {
@@ -4254,6 +4282,11 @@ function getWeeklySchedule() {
       };
     });
   }
+
+  var ss = getSpreadsheet();
+  if (!ss) return [];
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
+  if (!sheet) return [];
 
   var rows = sheet.getDataRange().getValues();
   var list = [];
@@ -4378,16 +4411,15 @@ function getMenuItems(dayOfWeek, restaurantName) {
     });
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.MENU);
-  if (!sheet) return [];
-
   if (!_sheetServiceRuntimeCache.menuRows) {
     var cachedMenuRows = _readSheetServiceCache('menuRows');
     if (cachedMenuRows) {
       _sheetServiceRuntimeCache.menuRows = cachedMenuRows;
     } else {
+      var ss = getSpreadsheet();
+      if (!ss) return [];
+      var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.MENU);
+      if (!sheet) return [];
       var rows = sheet.getDataRange().getValues();
       var fullMenu = [];
       for (var i = 1; i < rows.length; i++) {
@@ -4961,7 +4993,9 @@ function addOrder(orderData) {
     if (!sheet) return record;
 
     var headerStartedAt = Date.now();
-    var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+    // Whole-row range avoids a separate getLastColumn() call; trailing blanks are trimmed.
+    var headers = sheet.getRange('1:1').getValues()[0] || [];
+    while (headers.length > 1 && headers[headers.length - 1] === '') headers.pop();
     var colMap = _getOrderColumnIndexes(headers);
     var rowData = new Array(headers.length);
     for (var idx = 0; idx < rowData.length; idx++) rowData[idx] = '';
@@ -5029,7 +5063,7 @@ function addOrder(orderData) {
 function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   var effUserId = userId ? getEffectiveUserId(userId, userName, userName) : '';
 
-  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+  if (isGasRuntime() && _isOrderQueryCacheEnabled()) {
     var cachedUserOrders = _readOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || '']);
     if (cachedUserOrders) {
       return cachedUserOrders;
@@ -5069,7 +5103,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
 
       return true;
     });
-    if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+    if (isGasRuntime() && _isOrderQueryCacheEnabled()) {
       _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], mockUserOrders);
     }
     return mockUserOrders;
@@ -5142,7 +5176,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     });
   }
 
-  if (_isDevOrderQueryCacheEnabled()) {
+  if (_isOrderQueryCacheEnabled()) {
     _writeOrderQueryCache('userOrders', [userId || '', groupId || '', date || '', dayOfWeek || '', userName || ''], orders);
   }
   return orders;
@@ -5351,7 +5385,7 @@ function findUserInGroup(groupId, query) {
  * Get all active orders for a group on a date or dayOfWeek
  */
 function getGroupOrders(groupId, date, dayOfWeek) {
-  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+  if (isGasRuntime() && _isOrderQueryCacheEnabled()) {
     var cachedGroupOrders = _readOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || '']);
     if (cachedGroupOrders) {
       return cachedGroupOrders;
@@ -5363,7 +5397,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
       var matchGroup = (!groupId || o.groupId === groupId);
       return matchGroup && _matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek) && o.status === 'ACTIVE';
     });
-    if (_isDevOrderQueryCacheEnabled()) {
+    if (_isOrderQueryCacheEnabled()) {
       _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], mockGroupOrders);
     }
     return mockGroupOrders;
@@ -5411,7 +5445,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     });
   }
 
-  if (_isDevOrderQueryCacheEnabled()) {
+  if (_isOrderQueryCacheEnabled()) {
     _writeOrderQueryCache('groupOrders', [groupId || '', date || '', dayOfWeek || ''], orders);
   }
   return orders;
@@ -5421,7 +5455,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
  * Calculate single-day summary
  */
 function getOrderSummary(groupId, date, dayOfWeek) {
-  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+  if (isGasRuntime() && _isOrderQueryCacheEnabled()) {
     var cachedSummary = _readOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || '']);
     if (cachedSummary) {
       return cachedSummary;
@@ -5485,7 +5519,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
     users: usersList
   };
 
-  if (_isDevOrderQueryCacheEnabled()) {
+  if (_isOrderQueryCacheEnabled()) {
     _writeOrderQueryCache('orderSummary', [groupId || '', date || '', dayOfWeek || ''], summary);
   }
   return summary;
@@ -5495,7 +5529,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
  * Calculate full weekly summary (Mon to Fri batch)
  */
 function getWeeklyOrderSummary(groupId) {
-  if (isGasRuntime() && _isDevOrderQueryCacheEnabled()) {
+  if (isGasRuntime() && _isOrderQueryCacheEnabled()) {
     var cachedWeeklySummary = _readOrderQueryCache('weeklySummary', [groupId || '']);
     if (cachedWeeklySummary) {
       return cachedWeeklySummary;
@@ -5582,7 +5616,7 @@ function getWeeklyOrderSummary(groupId) {
     users: usersList
   };
 
-  if (_isDevOrderQueryCacheEnabled()) {
+  if (_isOrderQueryCacheEnabled()) {
     _writeOrderQueryCache('weeklySummary', [groupId || ''], weeklySummary);
   }
   return weeklySummary;
@@ -5693,6 +5727,7 @@ function migrateToHashedUserIds() {
       }
       if (cModified) {
         cRange.setValues(cData);
+        invalidateChildrenCache();
       }
     }
   } catch (e) {
@@ -6039,21 +6074,61 @@ function getChildren(userId, userName, userNickname) {
     });
     return kids;
   }
+  var cache = _getOrderQueryScriptCache();
+  var cacheKey = null;
+  if (cache) {
+    try {
+      cacheKey = 'children|' + _getChildrenCacheVersion(cache) + '|' + userId + '|' + effUserId;
+      var rawKids = cache.get(cacheKey);
+      if (rawKids) return JSON.parse(rawKids);
+    } catch (e) {
+      cacheKey = null;
+    }
+  }
   var ss = getSpreadsheet();
   if (!ss) return [];
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
   if (!sheet) return [];
   var rows = sheet.getDataRange().getValues();
-  if (!rows || rows.length <= 1) return [];
   var kids = [];
-  for (var i = 1; i < rows.length; i++) {
+  for (var i = 1; rows && i < rows.length; i++) {
     var rUid = String(rows[i][0] || '').trim();
     var rChild = String(rows[i][3] || '').trim();
     if ((rUid === userId || rUid === effUserId) && rChild && kids.indexOf(rChild) === -1) {
       kids.push(rChild);
     }
   }
+  if (cache && cacheKey) {
+    try { cache.put(cacheKey, JSON.stringify(kids), _childrenCacheTtlSeconds); } catch (e) {}
+  }
   return kids;
+}
+
+// Slightly above the 5-minute warm-up interval so entries never expire between runs.
+var _childrenCacheTtlSeconds = 360;
+
+function _getChildrenCacheVersion(cache) {
+  return _getNamedCacheVersion(cache, 'children');
+}
+
+// Called whenever the set of child names changes so cached getChildren results are skipped.
+function invalidateChildrenCache() {
+  _bumpNamedCacheVersion('children');
+}
+
+function _getNamedCacheVersion(cache, name) {
+  var v = cache.get(name + ':version');
+  if (!v) {
+    v = String(Date.now());
+    cache.put(name + ':version', v, 21600);
+  }
+  return v;
+}
+
+function _bumpNamedCacheVersion(name) {
+  var cache = _getOrderQueryScriptCache();
+  if (!cache) return;
+  try { cache.put(name + ':version', String(Date.now()), 21600); } catch (e) {}
 }
 
 /**
@@ -6166,6 +6241,7 @@ function saveChild(userId, userName, userNickname, childName, note) {
     nowStr,
     nowStr
   ]);
+  invalidateChildrenCache();
   return true;
 }
 
@@ -6229,6 +6305,7 @@ function setChildren(userId, userName, userNickname, childNames) {
       nowTime
     ]);
   });
+  invalidateChildrenCache();
   return true;
 }
 
@@ -6268,6 +6345,7 @@ function deleteChild(userId, childName, userName, userNickname) {
       deleted = true;
     }
   }
+  if (deleted) invalidateChildrenCache();
   return deleted;
 }
 
@@ -6293,6 +6371,17 @@ function getUserLocalePreference(userId, userName, userNickname) {
     return null;
   }
 
+  var localeCache = _getOrderQueryScriptCache();
+  var localeCacheKey = null;
+  if (localeCache) {
+    try {
+      localeCacheKey = 'localePref|' + _getNamedCacheVersion(localeCache, 'localePref') + '|' + userId + '|' + effUserId;
+      var rawLocale = localeCache.get(localeCacheKey);
+      if (rawLocale) return JSON.parse(rawLocale) || null;
+    } catch (e) {
+      localeCacheKey = null;
+    }
+  }
   var ss = getSpreadsheet();
   if (!ss) return null;
   var tabName = (CONFIG && CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PREFERENCES) || 'UserPreferences';
@@ -6300,14 +6389,18 @@ function getUserLocalePreference(userId, userName, userNickname) {
   if (!sheet) return null;
 
   var rows = sheet.getDataRange().getValues();
+  var foundLocale = null;
   for (var r = 1; r < rows.length; r++) {
     var rUid = String(rows[r][0] || '').trim();
     if (rUid === userId || rUid === effUserId) {
-      var loc = String(rows[r][1] || '').trim();
-      return loc || null;
+      foundLocale = String(rows[r][1] || '').trim() || null;
+      break;
     }
   }
-  return null;
+  if (localeCache && localeCacheKey) {
+    try { localeCache.put(localeCacheKey, JSON.stringify(foundLocale || ''), _childrenCacheTtlSeconds); } catch (e) {}
+  }
+  return foundLocale;
 }
 
 /**
@@ -6361,11 +6454,13 @@ function setUserLocalePreference(userId, locale, userName, userNickname) {
     if (rUid === userId || rUid === effUserId) {
       sheet.getRange(r + 1, 2).setValue(loc);
       sheet.getRange(r + 1, 3).setValue(nowStr);
+      _bumpNamedCacheVersion('localePref');
       return true;
     }
   }
 
   sheet.appendRow([effUserId, loc, nowStr]);
+  _bumpNamedCacheVersion('localePref');
   return true;
 }
 
@@ -12081,14 +12176,18 @@ function matchMenuItem(rawItemName, menuList) {
  * Main Message Dispatcher
  */
 function handleTextMessage(event) {
+  var handleStartedAt = Date.now();
   var replyToken = event.replyToken;
   var text = (event.message && event.message.text ? event.message.text : (event.text || '')).trim();
   var source = event.source || {};
   var userId = source.userId || 'anonymous';
   var groupId = source.groupId || source.roomId || '';
+  var todayStartedAt = Date.now();
   var todayDate = getTodayDateString();
   var todayDay = getTodayDayOfWeek();
-
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('OrderService.getToday', todayStartedAt);
+  }
   if (!text) return null;
 
   // Resolve user display name (nickname) early
@@ -12114,10 +12213,14 @@ function handleTextMessage(event) {
 
   // Resolve user effective locale
   var userLocale = 'zh-TW';
+  var localeStartedAt = Date.now();
   if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getEffectiveLocale) {
     userLocale = I18nModule.getEffectiveLocale(userId, userDisplayName);
   } else if (typeof getEffectiveLocale === 'function') {
     userLocale = getEffectiveLocale(userId, userDisplayName);
+  }
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('OrderService.getEffectiveLocale', localeStartedAt);
   }
 
   var _translateMsg = function (k, p) {
@@ -12265,6 +12368,7 @@ function handleTextMessage(event) {
 
   // 1-2. SPECIAL-DATE MENUS: 特餐菜單 / 特餐 日期 品名+數量 / 取消特餐 / 新增特餐 ...
   if (SpecialModule && SpecialModule.handleSpecialMenuCommand) {
+    var specialStartedAt = Date.now();
     var specialReply = SpecialModule.handleSpecialMenuCommand({
       text: text,
       userId: userId,
@@ -12276,6 +12380,9 @@ function handleTextMessage(event) {
       parseOrderText: parseOrderText,
       notify: notifyOrganizer
     });
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.handleSpecialMenuCommand', specialStartedAt);
+    }
     if (specialReply) {
       return specialReply.flex
         ? LineModule.replyFlex(replyToken, specialReply.altText, specialReply.flex)
@@ -13267,7 +13374,11 @@ function handleTextMessage(event) {
     // If ordering items have no child assigned and caller has registered children in Children tab,
     // pop up Quick Reply floating buttons for children selection plus openKeyboard note button.
     var allNoChild = orderItems.every(function (oi) { return !oi.childName; });
+    var childrenStartedAt = Date.now();
     var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.getChildren', childrenStartedAt);
+    }
 
     // 當 User 只有一個小孩的時候，預設餐點分配給該小孩，免去重複確認
     if (userKids && userKids.length === 1) {
@@ -13392,6 +13503,7 @@ function handleTextMessage(event) {
 
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
     var acceptedItems = [];
+    var acceptStartedAt = Date.now();
 
     orderItems.forEach(function (oi) {
       var day = oi.dayOfWeek || todayDay;
@@ -13426,6 +13538,10 @@ function handleTextMessage(event) {
         price: matched.price
       });
     });
+
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('OrderService.acceptItems', acceptStartedAt, { items: acceptedItems.length });
+    }
 
     if (acceptedItems.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
@@ -13468,6 +13584,9 @@ function handleTextMessage(event) {
       }, 0);
       var ackText = '✅ 已收到您的訂單，系統處理中：\n' + ackLines.join('\n') + '\n💰 預估總計：$' + ackTotal + ' 元';
       var ackReplyStartedAt = Date.now();
+      if (typeof logStepTiming === 'function') {
+        logStepTiming('OrderService.preAck', handleStartedAt);
+      }
       LineModule.replyText(replyToken, ackText);
       if (typeof logStepTiming === 'function') {
         logStepTiming('OrderService.replyText.ack', ackReplyStartedAt, {
@@ -14058,8 +14177,14 @@ function _hasRequiredSheets() {
     CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS
   ];
 
+  var existingNames = {};
+  var existingSheets = ss.getSheets();
+  for (var s = 0; s < existingSheets.length; s++) {
+    existingNames[existingSheets[s].getName()] = true;
+  }
+
   for (var i = 0; i < requiredSheets.length; i++) {
-    if (!ss.getSheetByName(requiredSheets[i])) {
+    if (!existingNames[requiredSheets[i]]) {
       return false;
     }
   }
@@ -14076,7 +14201,20 @@ function ensureSheetsInitialized() {
     return true;
   }
   var initFlag = getConfigProperty('SHEETS_INITIALIZED', 'false') === 'true';
+  var verifyCache = null;
+  if (initFlag && typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+    try { verifyCache = CacheService.getScriptCache(); } catch (e) {}
+  }
+  // Skip the per-request sheet scan; a deleted sheet is auto-repaired within the TTL window.
+  if (verifyCache) {
+    try {
+      if (verifyCache.get('sheets:verified')) return true;
+    } catch (e) {}
+  }
   if (initFlag && _hasRequiredSheets()) {
+    if (verifyCache) {
+      try { verifyCache.put('sheets:verified', '1', 360); } catch (e) {}
+    }
     return true;
   }
 
@@ -14090,6 +14228,7 @@ function ensureSheetsInitialized() {
 }
 
 function doPost(e) {
+  var doPostStartedAt = Date.now();
   try {
     if (typeof resetStepTimingLogs === 'function') {
       resetStepTimingLogs();
@@ -14135,8 +14274,11 @@ function doPost(e) {
     }
 
     // Ensure database sheets exist on first run or when required sheets are missing
+    var ensureStartedAt = Date.now();
     ensureSheetsInitialized();
-
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('doPost.ensureSheetsInitialized', ensureStartedAt);
+    }
     // Process all events
     for (var i = 0; i < events.length; i++) {
       var event = events[i];
@@ -14148,7 +14290,8 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
-        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode())) {
+        if (typeof logToSheet === 'function' && !(typeof isDevFastMode === 'function' && isDevFastMode()) &&
+            getConfigProperty('ENABLE_MSG_RECV_LOGS', 'false') === 'true') {
           var safeSrcId = srcId;
           // If source is a direct 1-on-1 user, de-identify using getEffectiveUserId if available
           if (event.source && event.source.type === 'user' && typeof getEffectiveUserId === 'function') {
@@ -14156,8 +14299,11 @@ function doPost(e) {
           }
           logToSheet('MSG_RECV', msgText, safeSrcId);
         }
+        var handleStartedAt = Date.now();
         var result = handleTextMessage(event);
-        if (typeof console !== 'undefined') {
+        if (typeof logStepTiming === 'function') {
+          logStepTiming('doPost.handleTextMessage', handleStartedAt, { text: String(msgText || '').slice(0, 20) });
+        }        if (typeof console !== 'undefined') {
           console.log('📤 [處理結果]: ' + JSON.stringify(result));
         }
       }
@@ -14189,6 +14335,9 @@ function doPost(e) {
     }
     return _createResponse(200, { status: 'error', error: err.message });
   } finally {
+    if (typeof logStepTiming === 'function') {
+      logStepTiming('doPost.total', doPostStartedAt);
+    }
     if (typeof flushStepTimingLogs === 'function') {
       flushStepTimingLogs();
     }
@@ -14549,6 +14698,37 @@ function setup() {
   return success;
 }
 
+/**
+ * Rebuild all script caches from the sheets.
+ * Run from the editor after manual sheet edits; also used as the 5-minute warm-up trigger.
+ */
+function warmCaches() {
+  var startedAt = Date.now();
+  if (typeof isGasRuntime !== 'function' || !isGasRuntime()) {
+    return true;
+  }
+
+  invalidateSheetServiceCaches();
+  invalidateOrderQueryCaches();
+  invalidateChildrenCache();
+  _bumpNamedCacheVersion('localePref');
+  var cache = _getOrderQueryScriptCache();
+  if (cache) {
+    try { cache.removeAll(['spreadsheetTimeZone', 'sheets:verified']); } catch (e) {}
+  }
+
+  ensureSheetsInitialized();
+  getConfigValue('DEFAULT_LOCALE', '');
+  getWeeklySchedule();
+  getMenuItems();
+  getSpreadsheetTimeZone();
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('Caches rebuilt in ' + (Date.now() - startedAt) + ' ms');
+  }
+  return true;
+}
+
 // Dual export for testing
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -14566,6 +14746,7 @@ function setup() {
   g.doGet = doGet;
   g.doPost = doPost;
   g.setup = setup;
+  g.warmCaches = warmCaches;
   g.testLineConnection = testLineConnection;
   g.testHelpMessage = testHelpMessage;
   g.testUberEatsImport = testUberEatsImport;
@@ -14584,6 +14765,7 @@ function setup() {
       doGet: doGet,
       doPost: doPost,
       setup: setup,
+      warmCaches: warmCaches,
       testLineConnection: testLineConnection,
       testHelpMessage: testHelpMessage,
       testUberEatsImport: testUberEatsImport,

@@ -1834,6 +1834,9 @@ assert.strictEqual(lastLog[2], "'  +MALICIOUS_LOG");
 assert.strictEqual(lastLog[3], "'\t@PAYLOAD");
 console.log('  ✔ Enhanced formula injection sanitization verified across cells, profiles, and logs.');
 
+assert.strictEqual(typeof CodeModule.warmCaches, 'function');
+assert.strictEqual(CodeModule.warmCaches(), true);
+
 // 12-3: Organizer Switch Lock (ALLOW_SWITCH_ORGANIZER)
 // Initially ALLOW_SWITCH_ORGANIZER is true
 SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
