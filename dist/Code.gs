@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-10-12T14:50:50+08:00
+ * Automatically generated on: 2026-10-12T15:42:58+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -446,6 +446,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 使用說明',
+    'unknown.hint': '🤔 看不懂這個指令，需要幫助嗎？點下方按鈕查看使用說明。',
+    'unknown.btn_help': '📖 幫助',
     'help.tip_click': '💡 點擊上方任一按鈕，即可直接發送指令！',
     'help.license': '服務授權：AGPL-3.0 原始碼 ',
     'help.alt_text': '指令說明',
@@ -762,6 +764,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Meal Ordering Bot Guide',
+    'unknown.hint': '🤔 I did not understand that. Need help? Tap the button below for the guide.',
+    'unknown.btn_help': '📖 Help',
     'help.tip_click': '💡 Click any button above to send the command directly!',
     'help.license': 'License: AGPL-3.0 Source Code ',
     'help.alt_text': 'Meal Ordering Bot Guide',
@@ -1017,6 +1021,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 お弁当注文利用案内',
+    'unknown.hint': '🤔 コマンドが分かりませんでした。下のボタンをタップして使い方を確認できます。',
+    'unknown.btn_help': '📖 ヘルプ',
     'help.tip_click': '💡 ボタンをタップして直接コマンドを送信できます！',
     'help.license': 'ライセンス: AGPL-3.0 ソースコード ',
     'help.alt_text': 'お弁当注文コマンド案内',
@@ -1272,6 +1278,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 도시락 주문 사용 안내',
+    'unknown.hint': '🤔 명령어를 이해하지 못했습니다. 도움이 필요하신가요? 아래 버튼을 눌러 안내를 확인하세요.',
+    'unknown.btn_help': '📖 도움말',
     'help.tip_click': '💡 위 버튼을 클릭하여 명령어를 바로 전송하세요!',
     'help.license': '라이선스: AGPL-3.0 소스코드 ',
     'help.alt_text': '도시락 주문 명령어 안내',
@@ -1527,6 +1535,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 คู่มือสั่งอาหารกล่อง',
+    'unknown.hint': '🤔 ไม่เข้าใจคำสั่งนี้ ต้องการความช่วยเหลือไหม กดปุ่มด้านล่างเพื่อดูคู่มือ',
+    'unknown.btn_help': '📖 ช่วยเหลือ',
     'help.tip_click': '💡 แตะปุ่มด้านบนเพื่อส่งคำสั่งได้ทันที!',
     'help.license': 'สัญญาอนุญาต: AGPL-3.0 ซอร์สโค้ด ',
     'help.alt_text': 'คู่มือสั่งอาหารกล่อง',
@@ -1782,6 +1792,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Panduan Pesan Makan Siang',
+    'unknown.hint': '🤔 Perintah tidak dikenali. Butuh bantuan? Ketuk tombol di bawah untuk melihat panduan.',
+    'unknown.btn_help': '📖 Bantuan',
     'help.tip_click': '💡 Klik tombol di atas untuk langsung mengirim perintah!',
     'help.license': 'Lisensi: Kode Sumber AGPL-3.0 ',
     'help.alt_text': 'Panduan Pesan Makan Siang',
@@ -2036,6 +2048,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Hướng dẫn Đặt cơm trưa',
+    'unknown.hint': '🤔 Không hiểu lệnh này. Bạn cần trợ giúp? Nhấn nút bên dưới để xem hướng dẫn.',
+    'unknown.btn_help': '📖 Trợ giúp',
     'help.tip_click': '💡 Nhấn vào các nút lệnh bên trên để gửi trực tiếp!',
     'help.license': 'Giấy phép: Mã nguồn mở AGPL-3.0 ',
     'help.alt_text': 'Hướng dẫn lệnh đặt cơm trưa',
@@ -3419,6 +3433,8 @@ var _sheetServiceRuntimeCache = {
   configMap: null,
   weeklySchedule: null,
   menuRows: null,
+  specialDates: null,
+  specialItems: null,
   orderQueryVersion: null,
   spreadsheet: null
 };
@@ -3426,7 +3442,8 @@ var _sheetServiceRuntimeCache = {
 var _sheetServiceCacheConfig = {
   configMapTtlSeconds: 360,
   weeklyScheduleTtlSeconds: 360,
-  menuRowsTtlSeconds: 360
+  menuRowsTtlSeconds: 360,
+  specialMenuTtlSeconds: 360
 };
 
 var _sheetServiceCachePrefix = null;
@@ -3479,7 +3496,9 @@ function invalidateSheetServiceCaches() {
   var keys = [
     _getSheetServiceCacheKey('configMap'),
     _getSheetServiceCacheKey('weeklySchedule'),
-    _getSheetServiceCacheKey('menuRows')
+    _getSheetServiceCacheKey('menuRows'),
+    _getSheetServiceCacheKey('specialDates'),
+    _getSheetServiceCacheKey('specialItems')
   ];
   if (cache && cache.removeAll) {
     try {
@@ -3498,8 +3517,11 @@ function resetSheetServiceRuntimeCache() {
   _sheetServiceRuntimeCache.configMap = null;
   _sheetServiceRuntimeCache.weeklySchedule = null;
   _sheetServiceRuntimeCache.menuRows = null;
+  _sheetServiceRuntimeCache.specialDates = null;
+  _sheetServiceRuntimeCache.specialItems = null;
   _sheetServiceRuntimeCache.orderQueryVersion = null;
   _sheetServiceRuntimeCache.spreadsheet = null;
+  _ordersSnapshot = null;
 }
 
 var _orderQueryCacheConfig = {
@@ -3591,10 +3613,33 @@ function _writeOrderQueryCache(scope, parts, value) {
 }
 
 function invalidateOrderQueryCaches() {
+  _ordersSnapshot = null;
   if (!isGasRuntime()) {
     return;
   }
   _bumpOrderQueryCacheVersion();
+}
+
+// Orders are read once per execution; every write path must go through invalidateOrderQueryCaches().
+var _ordersSnapshot = null;
+
+function _getOrdersSnapshot() {
+  if (_ordersSnapshot) return _ordersSnapshot;
+  var ss = getSpreadsheet();
+  if (!ss) return null;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+  if (!sheet) return null;
+  var loadStartedAt = Date.now();
+  var rows = sheet.getDataRange().getValues();
+  _ordersSnapshot = {
+    sheet: sheet,
+    rows: rows,
+    colMap: (rows && rows.length > 1) ? _getOrderColumnIndexes(rows[0]) : null
+  };
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('SheetService.ordersSnapshot.load', loadStartedAt, { rows: rows ? rows.length : 0 });
+  }
+  return _ordersSnapshot;
 }
 
 /**
@@ -5109,14 +5154,11 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     return mockUserOrders;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return [];
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return [];
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return [];
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
   var orders = [];
 
   var hasValidUserId = (userId && userId !== 'anonymous');
@@ -5239,14 +5281,12 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
     return count;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return 0;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return 0;
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return 0;
+  var sheet = snapshot.sheet;
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return 0;
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
 
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -5320,14 +5360,12 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     return count;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return 0;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return 0;
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return 0;
+  var sheet = snapshot.sheet;
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return 0;
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
 
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -5403,14 +5441,11 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     return mockGroupOrders;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return [];
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return [];
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return [];
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -5703,6 +5738,7 @@ function migrateToHashedUserIds() {
         }
         if (oModified) {
           oRange.setValues(oData);
+          _ordersSnapshot = null;
         }
       }
     }
@@ -6505,6 +6541,16 @@ function _specialQuantityLimit(val) {
   return (isFinite(n) && n > 0) ? Math.floor(n) : 0;
 }
 
+function _invalidateSpecialMenuCache() {
+  _sheetServiceRuntimeCache.specialDates = null;
+  _sheetServiceRuntimeCache.specialItems = null;
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return;
+  try {
+    cache.removeAll([_getSheetServiceCacheKey('specialDates'), _getSheetServiceCacheKey('specialItems')]);
+  } catch (e) {}
+}
+
 /**
  * List special dates sorted by date.
  * @returns {Array<{eventDate:string,title:string,cutoffAt:string,isActive:boolean,notes:string}>}
@@ -6522,21 +6568,28 @@ function getSpecialDates() {
       };
     });
   } else {
-    var ss = getSpreadsheet();
-    var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES) : null;
-    if (!sheet) return [];
-    var rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      var eventDate = _formatDateValue(rows[i][0]);
-      if (!eventDate) continue;
-      list.push({
-        eventDate: eventDate,
-        title: String(rows[i][1] || ''),
-        cutoffAt: _formatDateTimeValue(rows[i][2]),
-        isActive: String(rows[i][3]).toUpperCase() !== 'FALSE',
-        notes: String(rows[i][4] || '')
-      });
+    var rawDates = _sheetServiceRuntimeCache.specialDates || _readSheetServiceCache('specialDates');
+    if (!rawDates) {
+      var ss = getSpreadsheet();
+      var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES) : null;
+      if (!sheet) return [];
+      var rows = sheet.getDataRange().getValues();
+      rawDates = [];
+      for (var i = 1; i < rows.length; i++) {
+        var eventDate = _formatDateValue(rows[i][0]);
+        if (!eventDate) continue;
+        rawDates.push({
+          eventDate: eventDate,
+          title: String(rows[i][1] || ''),
+          cutoffAt: _formatDateTimeValue(rows[i][2]),
+          isActive: String(rows[i][3]).toUpperCase() !== 'FALSE',
+          notes: String(rows[i][4] || '')
+        });
+      }
+      _writeSheetServiceCache('specialDates', rawDates, _sheetServiceCacheConfig.specialMenuTtlSeconds);
     }
+    _sheetServiceRuntimeCache.specialDates = rawDates;
+    list = rawDates.map(function (d) { return Object.assign({}, d); });
   }
   list.sort(function (a, b) { return a.eventDate < b.eventDate ? -1 : (a.eventDate > b.eventDate ? 1 : 0); });
   return list;
@@ -6586,10 +6639,12 @@ function saveSpecialDate(eventDate, fields) {
       if (f.cutoffAt !== undefined) sheet.getRange(j + 1, 3).setValue(f.cutoffAt);
       if (f.isActive !== undefined) sheet.getRange(j + 1, 4).setValue(f.isActive ? 'TRUE' : 'FALSE');
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
+      _invalidateSpecialMenuCache();
       return true;
     }
   }
   sheet.appendRow([eventDate, title || '', f.cutoffAt || '', f.isActive === false ? 'FALSE' : 'TRUE', notes || '']);
+  _invalidateSpecialMenuCache();
   return true;
 }
 
@@ -6613,24 +6668,33 @@ function getSpecialItems(eventDate, includeUnavailable) {
       });
     });
   } else {
-    var ss = getSpreadsheet();
-    var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS) : null;
-    if (!sheet) return [];
-    var rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      if (_formatDateValue(rows[i][0]) !== eventDate) continue;
-      var name = String(rows[i][2] || '').trim();
-      if (!name) continue;
-      list.push({
-        eventDate: eventDate,
-        category: String(rows[i][1] || '特餐'),
-        itemName: name,
-        price: Number(rows[i][3]) || 0,
-        quantityLimit: _specialQuantityLimit(rows[i][4]),
-        isAvailable: String(rows[i][5]).toUpperCase() !== 'FALSE',
-        description: String(rows[i][6] || '')
-      });
+    var rawItems = _sheetServiceRuntimeCache.specialItems || _readSheetServiceCache('specialItems');
+    if (!rawItems) {
+      var ss = getSpreadsheet();
+      var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS) : null;
+      if (!sheet) return [];
+      var rows = sheet.getDataRange().getValues();
+      rawItems = [];
+      for (var i = 1; i < rows.length; i++) {
+        var rowDate = _formatDateValue(rows[i][0]);
+        var name = String(rows[i][2] || '').trim();
+        if (!rowDate || !name) continue;
+        rawItems.push({
+          eventDate: rowDate,
+          category: String(rows[i][1] || '特餐'),
+          itemName: name,
+          price: Number(rows[i][3]) || 0,
+          quantityLimit: _specialQuantityLimit(rows[i][4]),
+          isAvailable: String(rows[i][5]).toUpperCase() !== 'FALSE',
+          description: String(rows[i][6] || '')
+        });
+      }
+      _writeSheetServiceCache('specialItems', rawItems, _sheetServiceCacheConfig.specialMenuTtlSeconds);
     }
+    _sheetServiceRuntimeCache.specialItems = rawItems;
+    rawItems.forEach(function (m) {
+      if (m.eventDate === eventDate) list.push(Object.assign({}, m));
+    });
   }
   return includeUnavailable ? list : list.filter(function (m) { return m.isAvailable; });
 }
@@ -6674,10 +6738,12 @@ function saveSpecialItem(eventDate, itemName, price, quantityLimit, category, de
       sheet.getRange(j + 1, 5).setValue(limit);
       sheet.getRange(j + 1, 6).setValue('TRUE');
       if (description) sheet.getRange(j + 1, 7).setValue(desc);
+      _invalidateSpecialMenuCache();
       return true;
     }
   }
   sheet.appendRow([eventDate, cat, name, Number(price) || 0, limit, 'TRUE', desc]);
+  _invalidateSpecialMenuCache();
   return true;
 }
 
@@ -6706,6 +6772,8 @@ function addSpecialOrder(orderData) {
     try {
       lock = LockService.getScriptLock();
       lock.waitLock(10000);
+      // Another execution may have written while we waited, so the quota check must re-read Orders.
+      _ordersSnapshot = null;
     } catch (e) {
       return { ok: false, reason: 'BUSY' };
     }
@@ -13671,6 +13739,21 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 
+  // Direct chats always get a hint; groups only react to "/" so ordinary chatter stays unanswered.
+  if (source.type === 'user' || text.charAt(0) === '/') {
+    var helpHint = _translateMsg('unknown.hint');
+    var helpBtn = _translateMsg('unknown.btn_help');
+    // "help" is a cmd.help alias in every locale.
+    var helpItems = [{
+      type: 'action',
+      action: { type: 'message', label: helpBtn.slice(0, 20), text: 'help' }
+    }];
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, helpHint, helpItems);
+    }
+    return LineModule.replyMessages(replyToken, [{ type: 'text', text: helpHint, quickReply: { items: helpItems } }]);
+  }
+
   return null;
 }
 
@@ -14721,6 +14804,8 @@ function warmCaches() {
   getConfigValue('DEFAULT_LOCALE', '');
   getWeeklySchedule();
   getMenuItems();
+  getSpecialDates();
+  getSpecialItems('');
   getSpreadsheetTimeZone();
 
   if (typeof Logger !== 'undefined') {

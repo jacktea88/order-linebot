@@ -66,6 +66,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 使用說明',
+    'unknown.hint': '🤔 看不懂這個指令，需要幫助嗎？點下方按鈕查看使用說明。',
+    'unknown.btn_help': '📖 幫助',
     'help.tip_click': '💡 點擊上方任一按鈕，即可直接發送指令！',
     'help.license': '服務授權：AGPL-3.0 原始碼 ',
     'help.alt_text': '指令說明',
@@ -382,6 +384,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Meal Ordering Bot Guide',
+    'unknown.hint': '🤔 I did not understand that. Need help? Tap the button below for the guide.',
+    'unknown.btn_help': '📖 Help',
     'help.tip_click': '💡 Click any button above to send the command directly!',
     'help.license': 'License: AGPL-3.0 Source Code ',
     'help.alt_text': 'Meal Ordering Bot Guide',
@@ -637,6 +641,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 お弁当注文利用案内',
+    'unknown.hint': '🤔 コマンドが分かりませんでした。下のボタンをタップして使い方を確認できます。',
+    'unknown.btn_help': '📖 ヘルプ',
     'help.tip_click': '💡 ボタンをタップして直接コマンドを送信できます！',
     'help.license': 'ライセンス: AGPL-3.0 ソースコード ',
     'help.alt_text': 'お弁当注文コマンド案内',
@@ -892,6 +898,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 도시락 주문 사용 안내',
+    'unknown.hint': '🤔 명령어를 이해하지 못했습니다. 도움이 필요하신가요? 아래 버튼을 눌러 안내를 확인하세요.',
+    'unknown.btn_help': '📖 도움말',
     'help.tip_click': '💡 위 버튼을 클릭하여 명령어를 바로 전송하세요!',
     'help.license': '라이선스: AGPL-3.0 소스코드 ',
     'help.alt_text': '도시락 주문 명령어 안내',
@@ -1147,6 +1155,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 คู่มือสั่งอาหารกล่อง',
+    'unknown.hint': '🤔 ไม่เข้าใจคำสั่งนี้ ต้องการความช่วยเหลือไหม กดปุ่มด้านล่างเพื่อดูคู่มือ',
+    'unknown.btn_help': '📖 ช่วยเหลือ',
     'help.tip_click': '💡 แตะปุ่มด้านบนเพื่อส่งคำสั่งได้ทันที!',
     'help.license': 'สัญญาอนุญาต: AGPL-3.0 ซอร์สโค้ด ',
     'help.alt_text': 'คู่มือสั่งอาหารกล่อง',
@@ -1402,6 +1412,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Panduan Pesan Makan Siang',
+    'unknown.hint': '🤔 Perintah tidak dikenali. Butuh bantuan? Ketuk tombol di bawah untuk melihat panduan.',
+    'unknown.btn_help': '📖 Bantuan',
     'help.tip_click': '💡 Klik tombol di atas untuk langsung mengirim perintah!',
     'help.license': 'Lisensi: Kode Sumber AGPL-3.0 ',
     'help.alt_text': 'Panduan Pesan Makan Siang',
@@ -1656,6 +1668,8 @@ var I18N_MESSAGES = {
 
     // Help Flex
     'help.title': '📖 Hướng dẫn Đặt cơm trưa',
+    'unknown.hint': '🤔 Không hiểu lệnh này. Bạn cần trợ giúp? Nhấn nút bên dưới để xem hướng dẫn.',
+    'unknown.btn_help': '📖 Trợ giúp',
     'help.tip_click': '💡 Nhấn vào các nút lệnh bên trên để gửi trực tiếp!',
     'help.license': 'Giấy phép: Mã nguồn mở AGPL-3.0 ',
     'help.alt_text': 'Hướng dẫn lệnh đặt cơm trưa',

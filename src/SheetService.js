@@ -111,6 +111,8 @@ var _sheetServiceRuntimeCache = {
   configMap: null,
   weeklySchedule: null,
   menuRows: null,
+  specialDates: null,
+  specialItems: null,
   orderQueryVersion: null,
   spreadsheet: null
 };
@@ -118,7 +120,8 @@ var _sheetServiceRuntimeCache = {
 var _sheetServiceCacheConfig = {
   configMapTtlSeconds: 360,
   weeklyScheduleTtlSeconds: 360,
-  menuRowsTtlSeconds: 360
+  menuRowsTtlSeconds: 360,
+  specialMenuTtlSeconds: 360
 };
 
 var _sheetServiceCachePrefix = null;
@@ -171,7 +174,9 @@ function invalidateSheetServiceCaches() {
   var keys = [
     _getSheetServiceCacheKey('configMap'),
     _getSheetServiceCacheKey('weeklySchedule'),
-    _getSheetServiceCacheKey('menuRows')
+    _getSheetServiceCacheKey('menuRows'),
+    _getSheetServiceCacheKey('specialDates'),
+    _getSheetServiceCacheKey('specialItems')
   ];
   if (cache && cache.removeAll) {
     try {
@@ -190,8 +195,11 @@ function resetSheetServiceRuntimeCache() {
   _sheetServiceRuntimeCache.configMap = null;
   _sheetServiceRuntimeCache.weeklySchedule = null;
   _sheetServiceRuntimeCache.menuRows = null;
+  _sheetServiceRuntimeCache.specialDates = null;
+  _sheetServiceRuntimeCache.specialItems = null;
   _sheetServiceRuntimeCache.orderQueryVersion = null;
   _sheetServiceRuntimeCache.spreadsheet = null;
+  _ordersSnapshot = null;
 }
 
 var _orderQueryCacheConfig = {
@@ -283,10 +291,33 @@ function _writeOrderQueryCache(scope, parts, value) {
 }
 
 function invalidateOrderQueryCaches() {
+  _ordersSnapshot = null;
   if (!isGasRuntime()) {
     return;
   }
   _bumpOrderQueryCacheVersion();
+}
+
+// Orders are read once per execution; every write path must go through invalidateOrderQueryCaches().
+var _ordersSnapshot = null;
+
+function _getOrdersSnapshot() {
+  if (_ordersSnapshot) return _ordersSnapshot;
+  var ss = getSpreadsheet();
+  if (!ss) return null;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+  if (!sheet) return null;
+  var loadStartedAt = Date.now();
+  var rows = sheet.getDataRange().getValues();
+  _ordersSnapshot = {
+    sheet: sheet,
+    rows: rows,
+    colMap: (rows && rows.length > 1) ? _getOrderColumnIndexes(rows[0]) : null
+  };
+  if (typeof logStepTiming === 'function') {
+    logStepTiming('SheetService.ordersSnapshot.load', loadStartedAt, { rows: rows ? rows.length : 0 });
+  }
+  return _ordersSnapshot;
 }
 
 /**
@@ -1801,14 +1832,11 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     return mockUserOrders;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return [];
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return [];
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return [];
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
   var orders = [];
 
   var hasValidUserId = (userId && userId !== 'anonymous');
@@ -1931,14 +1959,12 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
     return count;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return 0;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return 0;
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return 0;
+  var sheet = snapshot.sheet;
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return 0;
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
 
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -2012,14 +2038,12 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     return count;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return 0;
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return 0;
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return 0;
+  var sheet = snapshot.sheet;
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return 0;
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
 
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -2095,14 +2119,11 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     return mockGroupOrders;
   }
 
-  var ss = getSpreadsheet();
-  if (!ss) return [];
-  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
-  if (!sheet) return [];
-
-  var rows = sheet.getDataRange().getValues();
+  var snapshot = _getOrdersSnapshot();
+  if (!snapshot) return [];
+  var rows = snapshot.rows;
   if (!rows || rows.length <= 1) return [];
-  var colMap = _getOrderColumnIndexes(rows[0]);
+  var colMap = snapshot.colMap;
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
@@ -2395,6 +2416,7 @@ function migrateToHashedUserIds() {
         }
         if (oModified) {
           oRange.setValues(oData);
+          _ordersSnapshot = null;
         }
       }
     }
@@ -3197,6 +3219,16 @@ function _specialQuantityLimit(val) {
   return (isFinite(n) && n > 0) ? Math.floor(n) : 0;
 }
 
+function _invalidateSpecialMenuCache() {
+  _sheetServiceRuntimeCache.specialDates = null;
+  _sheetServiceRuntimeCache.specialItems = null;
+  var cache = _getSheetServiceScriptCache();
+  if (!cache) return;
+  try {
+    cache.removeAll([_getSheetServiceCacheKey('specialDates'), _getSheetServiceCacheKey('specialItems')]);
+  } catch (e) {}
+}
+
 /**
  * List special dates sorted by date.
  * @returns {Array<{eventDate:string,title:string,cutoffAt:string,isActive:boolean,notes:string}>}
@@ -3214,21 +3246,28 @@ function getSpecialDates() {
       };
     });
   } else {
-    var ss = getSpreadsheet();
-    var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES) : null;
-    if (!sheet) return [];
-    var rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      var eventDate = _formatDateValue(rows[i][0]);
-      if (!eventDate) continue;
-      list.push({
-        eventDate: eventDate,
-        title: String(rows[i][1] || ''),
-        cutoffAt: _formatDateTimeValue(rows[i][2]),
-        isActive: String(rows[i][3]).toUpperCase() !== 'FALSE',
-        notes: String(rows[i][4] || '')
-      });
+    var rawDates = _sheetServiceRuntimeCache.specialDates || _readSheetServiceCache('specialDates');
+    if (!rawDates) {
+      var ss = getSpreadsheet();
+      var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_DATES) : null;
+      if (!sheet) return [];
+      var rows = sheet.getDataRange().getValues();
+      rawDates = [];
+      for (var i = 1; i < rows.length; i++) {
+        var eventDate = _formatDateValue(rows[i][0]);
+        if (!eventDate) continue;
+        rawDates.push({
+          eventDate: eventDate,
+          title: String(rows[i][1] || ''),
+          cutoffAt: _formatDateTimeValue(rows[i][2]),
+          isActive: String(rows[i][3]).toUpperCase() !== 'FALSE',
+          notes: String(rows[i][4] || '')
+        });
+      }
+      _writeSheetServiceCache('specialDates', rawDates, _sheetServiceCacheConfig.specialMenuTtlSeconds);
     }
+    _sheetServiceRuntimeCache.specialDates = rawDates;
+    list = rawDates.map(function (d) { return Object.assign({}, d); });
   }
   list.sort(function (a, b) { return a.eventDate < b.eventDate ? -1 : (a.eventDate > b.eventDate ? 1 : 0); });
   return list;
@@ -3278,10 +3317,12 @@ function saveSpecialDate(eventDate, fields) {
       if (f.cutoffAt !== undefined) sheet.getRange(j + 1, 3).setValue(f.cutoffAt);
       if (f.isActive !== undefined) sheet.getRange(j + 1, 4).setValue(f.isActive ? 'TRUE' : 'FALSE');
       if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
+      _invalidateSpecialMenuCache();
       return true;
     }
   }
   sheet.appendRow([eventDate, title || '', f.cutoffAt || '', f.isActive === false ? 'FALSE' : 'TRUE', notes || '']);
+  _invalidateSpecialMenuCache();
   return true;
 }
 
@@ -3305,24 +3346,33 @@ function getSpecialItems(eventDate, includeUnavailable) {
       });
     });
   } else {
-    var ss = getSpreadsheet();
-    var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS) : null;
-    if (!sheet) return [];
-    var rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      if (_formatDateValue(rows[i][0]) !== eventDate) continue;
-      var name = String(rows[i][2] || '').trim();
-      if (!name) continue;
-      list.push({
-        eventDate: eventDate,
-        category: String(rows[i][1] || '特餐'),
-        itemName: name,
-        price: Number(rows[i][3]) || 0,
-        quantityLimit: _specialQuantityLimit(rows[i][4]),
-        isAvailable: String(rows[i][5]).toUpperCase() !== 'FALSE',
-        description: String(rows[i][6] || '')
-      });
+    var rawItems = _sheetServiceRuntimeCache.specialItems || _readSheetServiceCache('specialItems');
+    if (!rawItems) {
+      var ss = getSpreadsheet();
+      var sheet = ss ? ss.getSheetByName(CONFIG.SHEET_NAMES.SPECIAL_MENU_ITEMS) : null;
+      if (!sheet) return [];
+      var rows = sheet.getDataRange().getValues();
+      rawItems = [];
+      for (var i = 1; i < rows.length; i++) {
+        var rowDate = _formatDateValue(rows[i][0]);
+        var name = String(rows[i][2] || '').trim();
+        if (!rowDate || !name) continue;
+        rawItems.push({
+          eventDate: rowDate,
+          category: String(rows[i][1] || '特餐'),
+          itemName: name,
+          price: Number(rows[i][3]) || 0,
+          quantityLimit: _specialQuantityLimit(rows[i][4]),
+          isAvailable: String(rows[i][5]).toUpperCase() !== 'FALSE',
+          description: String(rows[i][6] || '')
+        });
+      }
+      _writeSheetServiceCache('specialItems', rawItems, _sheetServiceCacheConfig.specialMenuTtlSeconds);
     }
+    _sheetServiceRuntimeCache.specialItems = rawItems;
+    rawItems.forEach(function (m) {
+      if (m.eventDate === eventDate) list.push(Object.assign({}, m));
+    });
   }
   return includeUnavailable ? list : list.filter(function (m) { return m.isAvailable; });
 }
@@ -3366,10 +3416,12 @@ function saveSpecialItem(eventDate, itemName, price, quantityLimit, category, de
       sheet.getRange(j + 1, 5).setValue(limit);
       sheet.getRange(j + 1, 6).setValue('TRUE');
       if (description) sheet.getRange(j + 1, 7).setValue(desc);
+      _invalidateSpecialMenuCache();
       return true;
     }
   }
   sheet.appendRow([eventDate, cat, name, Number(price) || 0, limit, 'TRUE', desc]);
+  _invalidateSpecialMenuCache();
   return true;
 }
 
@@ -3398,6 +3450,8 @@ function addSpecialOrder(orderData) {
     try {
       lock = LockService.getScriptLock();
       lock.waitLock(10000);
+      // Another execution may have written while we waited, so the quota check must re-read Orders.
+      _ordersSnapshot = null;
     } catch (e) {
       return { ok: false, reason: 'BUSY' };
     }

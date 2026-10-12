@@ -2300,6 +2300,21 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 
+  // Direct chats always get a hint; groups only react to "/" so ordinary chatter stays unanswered.
+  if (source.type === 'user' || text.charAt(0) === '/') {
+    var helpHint = _translateMsg('unknown.hint');
+    var helpBtn = _translateMsg('unknown.btn_help');
+    // "help" is a cmd.help alias in every locale.
+    var helpItems = [{
+      type: 'action',
+      action: { type: 'message', label: helpBtn.slice(0, 20), text: 'help' }
+    }];
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, helpHint, helpItems);
+    }
+    return LineModule.replyMessages(replyToken, [{ type: 'text', text: helpHint, quickReply: { items: helpItems } }]);
+  }
+
   return null;
 }
 

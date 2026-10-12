@@ -1837,6 +1837,35 @@ console.log('  ✔ Enhanced formula injection sanitization verified across cells
 assert.strictEqual(typeof CodeModule.warmCaches, 'function');
 assert.strictEqual(CodeModule.warmCaches(), true);
 
+// Unknown commands: direct chats get a help hint, groups only react to a "/" prefix
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'token_unknown_dm',
+  source: { userId: 'user_dm_test', type: 'user' },
+  message: { type: 'text', text: 'asdfgh' }
+});
+assert.ok(lastReply && lastReply.type === 'quick_reply', 'Direct chat must get a quick reply hint');
+assert.strictEqual(lastReply.quickReply.items.length, 1);
+assert.strictEqual(lastReply.quickReply.items[0].action.text, 'help');
+assert.ok(lastReply.quickReply.items[0].action.label.indexOf('幫助') !== -1, 'Help button label must be shown');
+
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'token_unknown_group',
+  source: { groupId: 'g_unknown_test', userId: 'user_dm_test', type: 'group' },
+  message: { type: 'text', text: 'asdfgh' }
+});
+assert.strictEqual(lastReply, null, 'Group chatter must stay unanswered');
+
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'token_unknown_group_slash',
+  source: { groupId: 'g_unknown_test', userId: 'user_dm_test', type: 'group' },
+  message: { type: 'text', text: '/foo' }
+});
+assert.ok(lastReply && lastReply.type === 'quick_reply', 'Group "/" prefix must get a hint');
+console.log('  ✔ Unknown command hint (direct chat and "/" prefix in groups) verified.');
+
 // 12-3: Organizer Switch Lock (ALLOW_SWITCH_ORGANIZER)
 // Initially ALLOW_SWITCH_ORGANIZER is true
 SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');

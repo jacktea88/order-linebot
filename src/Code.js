@@ -912,6 +912,8 @@ function warmCaches() {
   getConfigValue('DEFAULT_LOCALE', '');
   getWeeklySchedule();
   getMenuItems();
+  getSpecialDates();
+  getSpecialItems('');
   getSpreadsheetTimeZone();
 
   if (typeof Logger !== 'undefined') {
