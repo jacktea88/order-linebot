@@ -42,15 +42,41 @@ jobs:
       - name: Bundle dist/Code.gs
         run: npm run bundle
 
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -e
+          [ -n "$CLASPRC_JSON" ] || { echo "Missing secret: CLASPRC_JSON"; exit 1; }
+          [ -n "$CLASP_SCRIPT_ID" ] || { echo "Missing secret: CLASP_SCRIPT_ID"; exit 1; }
+          [ -n "$CLASP_DEPLOYMENT_ID" ] || { echo "Missing secret: CLASP_DEPLOYMENT_ID"; exit 1; }
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+
       - name: Setup clasp
         shell: bash
         run: |
           npm install -g @google/clasp
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
           mkdir -p ~/.config/clasp
           echo "$CLASPRC_JSON" > ~/.config/clasp/.clasprc.json
           chmod 600 ~/.config/clasp/.clasprc.json
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Write .clasp.json from secret
+        shell: bash
+        run: |
+          cat > .clasp.json <<EOF
+          {
+            "scriptId": "$CLASP_SCRIPT_ID",
+            "rootDir": "dist"
+          }
+          EOF
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
 
       - name: Push to Apps Script
         run: npx @google/clasp push -f
