@@ -44,6 +44,18 @@ jobs:
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
 
+      - name: Write .clasp.json from secret
+        shell: bash
+        run: |
+          cat > .clasp.json <<EOF
+          {
+            "scriptId": "$CLASP_SCRIPT_ID",
+            "rootDir": "dist"
+          }
+          EOF
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+
       - name: Verify clasp auth
         run: clasp list 2>&1 | head -5
 
