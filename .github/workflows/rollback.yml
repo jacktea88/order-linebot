@@ -1,0 +1,86 @@
+name: Rollback GAS (special-order)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'Commit SHA to rollback to (e.g., abc1234)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback (optional)'
+        required: false
+        type: string
+
+concurrency:
+  group: gas-rollback-special-order
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout target commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test 2>&1 | tail -50
+
+      - name: Bundle dist/Code.gs
+        run: npm run bundle
+
+      - name: Setup clasp
+        shell: bash
+        run: |
+          npm install -g @google/clasp
+          mkdir -p ~/.config/clasp
+          echo "$CLASPRC_JSON" > ~/.config/clasp/.clasprc.json
+          chmod 600 ~/.config/clasp/.clasprc.json
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Push to Apps Script
+        run: npx @google/clasp push -f
+
+      - name: Deploy to existing deployment
+        run: |
+          DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          npx @google/clasp deploy \
+            --deploymentId "$CLASP_DEPLOYMENT_ID" \
+            --description "ROLLBACK: ${{ inputs.target_sha }} @ ${DEPLOY_TIME} | ${{ inputs.reason }}"
+        env:
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+
+      - name: Create rollback summary
+        if: success()
+        shell: bash
+        run: |
+          echo "## ⏮️ Rollback Success" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target SHA**: \`${{ inputs.target_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reason**: ${{ inputs.reason || '(none provided)' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps**:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Monitor the LINE bot for normal operation" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run smoke test (Help, Menu, My Orders)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Document the incident in your issue tracker" >> $GITHUB_STEP_SUMMARY
+
+      - name: Handle rollback failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "## ❌ Rollback Failed" >> $GITHUB_STEP_SUMMARY
+          echo "The rollback deployment failed. Please investigate the logs." >> $GITHUB_STEP_SUMMARY
