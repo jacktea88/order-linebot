@@ -22,10 +22,18 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout target commit
+      - name: Checkout repository (full history)
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_sha }}
+          ref: special-order
+          fetch-depth: 0
+
+      - name: Checkout target commit
+        shell: bash
+        run: |
+          set -e
+          git rev-parse --verify "${{ inputs.target_sha }}^{commit}"
+          git checkout "${{ inputs.target_sha }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
