@@ -1,0 +1,79 @@
+name: Deploy to GAS (special-order)
+
+on:
+  push:
+    branches:
+      - special-order
+  workflow_dispatch:
+
+concurrency:
+  group: gas-deploy-special-order
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout special-order
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test 2>&1 | tail -100
+
+      - name: Bundle dist/Code.gs
+        run: npm run bundle
+
+      - name: Setup clasp
+        shell: bash
+        run: |
+          npm install -g @google/clasp
+          mkdir -p ~/.config/clasp
+          echo "$CLASPRC_JSON" > ~/.config/clasp/.clasprc.json
+          chmod 600 ~/.config/clasp/.clasprc.json
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Verify clasp auth
+        run: clasp list 2>&1 | head -5
+
+      - name: Push to Apps Script
+        run: npx @google/clasp push -f
+
+      - name: Deploy to existing deployment
+        run: |
+          DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          COMMIT_HASH=${GITHUB_SHA:0:7}
+          npx @google/clasp deploy \
+            --deploymentId "$CLASP_DEPLOYMENT_ID" \
+            --description "special-order CI: ${COMMIT_HASH} @ ${DEPLOY_TIME}"
+        env:
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+
+      - name: Create deployment summary
+        if: success()
+        shell: bash
+        run: |
+          echo "## ✅ Deploy Success" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: special-order" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment ID**: \`${{ secrets.CLASP_DEPLOYMENT_ID }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Handle deployment failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "## ❌ Deploy Failed" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "Consider rolling back to a previous stable version." >> $GITHUB_STEP_SUMMARY
