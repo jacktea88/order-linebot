@@ -381,13 +381,13 @@ assert.strictEqual(lastReply.altText, '指令說明');
 const helpBody = lastReply.flex.body.contents;
 const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
 assert.strictEqual(helpButtons.length, 5);
-assert.strictEqual(helpButtons[0].action.text, '道親選單');
-assert.strictEqual(helpButtons[1].action.text, '取消登記');
-assert.strictEqual(helpButtons[2].action.text, '我的本月登記');
-assert.strictEqual(helpButtons[2].action.label, '查本月');
-assert.strictEqual(helpButtons[3].action.text, '我的次月登記');
-assert.strictEqual(helpButtons[3].action.label, '查次月');
-assert.strictEqual(helpButtons[4].action.text, '道場工作項目');
+assert.strictEqual(helpButtons[0].action.text, '道場工作項目');
+assert.strictEqual(helpButtons[1].action.text, '道親選單');
+assert.strictEqual(helpButtons[2].action.text, '取消登記');
+assert.strictEqual(helpButtons[3].action.text, '我的本月登記');
+assert.strictEqual(helpButtons[3].action.label, '查本月');
+assert.strictEqual(helpButtons[4].action.text, '我的次月登記');
+assert.strictEqual(helpButtons[4].action.label, '查次月');
 console.log('  ✔ Buttonized Help card verified with 5 quick-action buttons.');
 
 // 工作 aliases must reach the same handlers as 菜單
@@ -411,7 +411,7 @@ assert.ok(lastReply && (lastReply.type === 'flex' || lastReply.type === 'text'),
 OrderModule.handleTextMessage({
   replyToken: 'token_help_kids_button',
   source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: helpButtons[0].action.text }
+  message: { type: 'text', text: helpButtons[1].action.text }
 });
 assert.strictEqual(lastReply.type, 'flex');
 assert.strictEqual(lastReply.altText, '👶 道親與工作對象管理選單');
@@ -2419,7 +2419,8 @@ assert.strictEqual(lastReply.altText, 'Meal Ordering Bot Guide');
 var engHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(engHelpButtons[0], 'Kids Menu');
+assert.strictEqual(engHelpButtons[0], '看工作項目');
+assert.strictEqual(engHelpButtons[1], 'Kids Menu');
 assert.strictEqual(engHelpButtons[5], 'Language');
 
 // User sets language to Japanese via Postback
@@ -2445,7 +2446,8 @@ assert.strictEqual(lastReply.altText, 'お弁当注文コマンド案内');
 var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(jaHelpButtons[0], '子供メニュー');
+assert.strictEqual(jaHelpButtons[0], '看工作項目');
+assert.strictEqual(jaHelpButtons[1], '子供メニュー');
 assert.strictEqual(jaHelpButtons[5], '言語設定');
 
 // 14.6 Verify all help menu button commands across all 7 supported locales
@@ -3144,7 +3146,8 @@ assert.strictEqual(lastReply.altText, 'Hướng dẫn lệnh đặt cơm trưa')
 var viHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
-assert.strictEqual(viHelpButtons[0], 'Menu Bé');
+assert.strictEqual(viHelpButtons[0], '看工作項目');
+assert.strictEqual(viHelpButtons[1], 'Menu Bé');
 assert.strictEqual(viHelpButtons[5], 'Đổi ngôn ngữ');
 
 // 17.5 Vietnamese Day Aliases & Menu Querying

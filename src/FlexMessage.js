@@ -121,6 +121,7 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
     userLocaleActive: userLocaleActive
   }, function () {
     var commands = [
+      { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
       { label: _translateHelper('help.cmd_children.title', {}, locale), desc: _translateHelper('help.cmd_children.desc', {}, locale), cmd: _translateHelper('help.cmd_children.cmd', {}, locale), btnText: _translateHelper('help.cmd_children.btn', {}, locale) },
@@ -131,8 +132,7 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
       { label: _translateHelper('help.cmd_my_next_month.title', {}, locale), desc: _translateHelper('help.cmd_my_next_month.desc', {}, locale), cmd: _translateHelper('help.cmd_my_next_month.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_next_month.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_weekly_stats.title', {}, locale), desc: _translateHelper('help.cmd_weekly_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_stats.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_today_stats.title', {}, locale), desc: _translateHelper('help.cmd_today_stats.desc', {}, locale), cmd: _translateHelper('help.cmd_today_stats.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_stats.btn', {}, locale) },
-      // { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) }
+      // { label: _translateHelper('help.cmd_close.title', {}, locale), desc: _translateHelper('help.cmd_close.desc', {}, locale), cmd: _translateHelper('help.cmd_close.cmd', {}, locale), btnText: _translateHelper('help.cmd_close.btn', {}, locale) }
     ];
 
     if (userLocaleActive) {
