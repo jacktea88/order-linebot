@@ -6,6 +6,9 @@
  */
 
 const { spawnSync } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 function run(cmd, args, opts, attempts) {
   const maxAttempts = attempts || 1;
@@ -42,6 +45,43 @@ function resolveDeploymentId() {
   return ids[0];
 }
 
+function writeFileSafe(filePath, content) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, 'utf8');
+}
+
+function setupClaspAuthFromEnv() {
+  const tokenJson = process.env.CLASPRC_JSON;
+  if (!tokenJson) return;
+
+  const homeClasprc = path.join(os.homedir(), '.clasprc.json');
+  const configClasprc = path.join(os.homedir(), '.config', 'clasp', '.clasprc.json');
+  writeFileSafe(homeClasprc, tokenJson);
+  writeFileSafe(configClasprc, tokenJson);
+
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(homeClasprc, 0o600);
+      fs.chmodSync(configClasprc, 0o600);
+    } catch (_) {
+      // ignore permission tweaks on environments that do not support chmod
+    }
+  }
+}
+
+function ensureClaspProjectFile() {
+  if (!process.env.CLASP_SCRIPT_ID) return;
+
+  const claspConfigPath = path.join(process.cwd(), '.clasp.json');
+  const payload = {
+    scriptId: process.env.CLASP_SCRIPT_ID.trim(),
+    rootDir: 'dist'
+  };
+  writeFileSafe(claspConfigPath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+setupClaspAuthFromEnv();
+ensureClaspProjectFile();
 run('npm', ['test']);
 run('npm', ['run', 'bundle']);
 const deploymentId = resolveDeploymentId();

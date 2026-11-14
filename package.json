@@ -7,7 +7,8 @@
     "test": "node tests/test_order_flow.js",
     "bundle": "node scripts/bundle.js",
     "push": "npm run bundle && npx @google/clasp push -f",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "deploy:gas": "node scripts/deploy.js"
   },
   "keywords": ["linebot", "google-apps-script", "meal-ordering", "google-sheets"],
   "author": "",

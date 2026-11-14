@@ -218,6 +218,10 @@ npm test
 
 # 重新編譯產出 GAS 單一程式碼檔案 (dist/Code.gs)
 npm run bundle
+
+# 一鍵部署到既有 GAS deployment（適用 Codespace/本機備援）
+# 可搭配 CLASPRC_JSON、CLASP_SCRIPT_ID、CLASP_DEPLOYMENT_ID 環境變數
+npm run deploy:gas
 ```
 
 ---
