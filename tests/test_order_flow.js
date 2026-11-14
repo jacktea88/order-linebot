@@ -382,12 +382,12 @@ const helpBody = lastReply.flex.body.contents;
 const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
 assert.strictEqual(helpButtons.length, 5);
 assert.strictEqual(helpButtons[0].action.text, '道場工作項目');
-assert.strictEqual(helpButtons[1].action.text, '道親選單');
-assert.strictEqual(helpButtons[2].action.text, '取消登記');
-assert.strictEqual(helpButtons[3].action.text, '我的本月登記');
-assert.strictEqual(helpButtons[3].action.label, '查本月');
-assert.strictEqual(helpButtons[4].action.text, '我的次月登記');
-assert.strictEqual(helpButtons[4].action.label, '查次月');
+assert.strictEqual(helpButtons[1].action.text, '取消登記');
+assert.strictEqual(helpButtons[2].action.text, '我的本月登記');
+assert.strictEqual(helpButtons[2].action.label, '查本月');
+assert.strictEqual(helpButtons[3].action.text, '我的次月登記');
+assert.strictEqual(helpButtons[3].action.label, '查次月');
+assert.strictEqual(helpButtons[4].action.text, '道親選單');
 console.log('  ✔ Buttonized Help card verified with 5 quick-action buttons.');
 
 // 工作 aliases must reach the same handlers as 菜單
@@ -407,11 +407,11 @@ lastReply = null;
 OrderModule.handleTextMessage({ replyToken: 'token_alias_cancel', source: { groupId: groupId, userId: 'user_alice' }, message: { type: 'text', text: '取消登記' } });
 assert.ok(lastReply && (lastReply.type === 'flex' || lastReply.type === 'text'), '取消登記 must open the cancel menu');
 
-// Verify clicking the 小孩選單 button from Help invokes children submenu
+// Verify clicking the 道親選單 button from Help invokes children submenu
 OrderModule.handleTextMessage({
   replyToken: 'token_help_kids_button',
   source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: helpButtons[1].action.text }
+  message: { type: 'text', text: helpButtons[4].action.text }
 });
 assert.strictEqual(lastReply.type, 'flex');
 assert.strictEqual(lastReply.altText, '👶 道親與工作對象管理選單');
@@ -2420,8 +2420,8 @@ var engHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
 assert.strictEqual(engHelpButtons[0], '看工作項目');
-assert.strictEqual(engHelpButtons[1], 'Kids Menu');
-assert.strictEqual(engHelpButtons[5], 'Language');
+assert.strictEqual(engHelpButtons[4], 'Language');
+assert.strictEqual(engHelpButtons[5], 'Kids Menu');
 
 // User sets language to Japanese via Postback
 OrderModule.handlePostbackEvent({
@@ -2447,8 +2447,8 @@ var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
 assert.strictEqual(jaHelpButtons[0], '看工作項目');
-assert.strictEqual(jaHelpButtons[1], '子供メニュー');
-assert.strictEqual(jaHelpButtons[5], '言語設定');
+assert.strictEqual(jaHelpButtons[4], '言語設定');
+assert.strictEqual(jaHelpButtons[5], '子供メニュー');
 
 // 14.6 Verify all help menu button commands across all 7 supported locales
 // (zh-TW, en, ja, ko, th, id, vi) successfully trigger handlers
@@ -2458,6 +2458,7 @@ allLocales.forEach(function (loc) {
   var helpFlex = FlexModule.createHelpFlex('https://tinyurl.com/4c92wtee', loc);
   var rows = helpFlex.body.contents;
   assert.strictEqual(rows.length, 6, 'Each locale must render 6 command buttons in help flex');
+  assert.strictEqual(rows[rows.length - 1].contents[1].action.label, I18nModule.t('help.cmd_children.btn', null, loc), 'Children menu must be last for ' + loc);
 
   rows.forEach(function (row, btnIdx) {
     var cmdText = row.contents[1].action.text;
@@ -3147,8 +3148,8 @@ var viHelpButtons = lastReply.flex.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
 assert.strictEqual(viHelpButtons[0], '看工作項目');
-assert.strictEqual(viHelpButtons[1], 'Menu Bé');
-assert.strictEqual(viHelpButtons[5], 'Đổi ngôn ngữ');
+assert.strictEqual(viHelpButtons[4], 'Đổi ngôn ngữ');
+assert.strictEqual(viHelpButtons[5], 'Menu Bé');
 
 // 17.5 Vietnamese Day Aliases & Menu Querying
 SheetModule.setWeeklyScheduleDay('週一', 'Tiệm Cơm Việt', '10:30');

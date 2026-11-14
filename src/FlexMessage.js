@@ -124,7 +124,6 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
       { label: _translateHelper('help.cmd_special.title', {}, locale), desc: _translateHelper('help.cmd_special.desc', {}, locale), cmd: _translateHelper('help.cmd_special.cmd', {}, locale), btnText: _translateHelper('help.cmd_special.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_weekly_schedule.title', {}, locale), desc: _translateHelper('help.cmd_weekly_schedule.desc', {}, locale), cmd: _translateHelper('help.cmd_weekly_schedule.cmd', {}, locale), btnText: _translateHelper('help.cmd_weekly_schedule.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_today_menu.title', {}, locale), desc: _translateHelper('help.cmd_today_menu.desc', {}, locale), cmd: _translateHelper('help.cmd_today_menu.cmd', {}, locale), btnText: _translateHelper('help.cmd_today_menu.btn', {}, locale) },
-      { label: _translateHelper('help.cmd_children.title', {}, locale), desc: _translateHelper('help.cmd_children.desc', {}, locale), cmd: _translateHelper('help.cmd_children.cmd', {}, locale), btnText: _translateHelper('help.cmd_children.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_my_today.title', {}, locale), desc: _translateHelper('help.cmd_my_today.desc', {}, locale), cmd: _translateHelper('help.cmd_my_today.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_today.btn', {}, locale) },
       // { label: _translateHelper('help.cmd_my_weekly.title', {}, locale), desc: _translateHelper('help.cmd_my_weekly.desc', {}, locale), cmd: _translateHelper('help.cmd_my_weekly.cmd', {}, locale), btnText: _translateHelper('help.cmd_my_weekly.btn', {}, locale) },
       { label: _translateHelper('help.cmd_cancel.title', {}, locale), desc: _translateHelper('help.cmd_cancel.desc', {}, locale), cmd: _translateHelper('help.cmd_cancel.cmd', {}, locale), btnText: _translateHelper('help.cmd_cancel.btn', {}, locale) },
@@ -143,6 +142,13 @@ function _getHelpStaticTextBundle(locale, sourceCodeUrl, userLocaleActive) {
         btnText: _translateHelper('help.cmd_language.btn', {}, locale)
       });
     }
+
+    commands.push({
+      label: _translateHelper('help.cmd_children.title', {}, locale),
+      desc: _translateHelper('help.cmd_children.desc', {}, locale),
+      cmd: _translateHelper('help.cmd_children.cmd', {}, locale),
+      btnText: _translateHelper('help.cmd_children.btn', {}, locale)
+    });
 
     return {
       title: _translateHelper('help.title', {}, locale),
