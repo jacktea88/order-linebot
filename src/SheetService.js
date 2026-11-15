@@ -2974,18 +2974,26 @@ function setChildren(userId, userName, userNickname, childNames) {
 
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
-    _mockStore.Children = _mockStore.Children.filter(function (c) { return c.userId !== userId && c.userId !== effUserId; });
+    
+    // Get existing children for this user
+    var existingNames = _mockStore.Children
+      .filter(function (c) { return c.userId === userId || c.userId === effUserId; })
+      .map(function (c) { return c.childName; });
+    
+    // Only add new names that don't already exist
     var nowStr = new Date().toISOString();
     names.forEach(function (n) {
-      _mockStore.Children.push({
-        userId: effUserId,
-        userName: _sanitizeSheetCell(userName || ''),
-        userNickname: _sanitizeSheetCell(userNickname || userName || ''),
-        childName: _sanitizeSheetCell(n),
-        note: '',
-        createdAt: nowStr,
-        updatedAt: nowStr
-      });
+      if (existingNames.indexOf(_sanitizeSheetCell(n)) === -1) {
+        _mockStore.Children.push({
+          userId: effUserId,
+          userName: _sanitizeSheetCell(userName || ''),
+          userNickname: _sanitizeSheetCell(userNickname || userName || ''),
+          childName: _sanitizeSheetCell(n),
+          note: '',
+          createdAt: nowStr,
+          updatedAt: nowStr
+        });
+      }
     });
     return true;
   }
@@ -3000,27 +3008,81 @@ function setChildren(userId, userName, userNickname, childNames) {
   }
 
   var rows = sheet.getDataRange().getValues();
-  for (var r = rows.length - 1; r >= 1; r--) {
+  
+  // Collect existing child names for this user
+  var existingNames = [];
+  for (var r = 1; r < rows.length; r++) {
     var rUid = String(rows[r][0]).trim();
     if (rUid === userId || rUid === effUserId) {
-      sheet.deleteRow(r + 1);
+      var childName = String(rows[r][3]).trim();
+      if (childName) {
+        existingNames.push(childName);
+      }
     }
   }
 
   var nowTime = new Date().toISOString();
+  var addedCount = 0;
+  
+  // Only add names that don't already exist
   names.forEach(function (n) {
-    sheet.appendRow([
-      effUserId,
-      _sanitizeSheetCell(userName || ''),
-      _sanitizeSheetCell(userNickname || userName || ''),
-      _sanitizeSheetCell(n),
-      '',
-      nowTime,
-      nowTime
-    ]);
+    var sanitizedName = _sanitizeSheetCell(n);
+    if (existingNames.indexOf(sanitizedName) === -1) {
+      sheet.appendRow([
+        effUserId,
+        _sanitizeSheetCell(userName || ''),
+        _sanitizeSheetCell(userNickname || userName || ''),
+        sanitizedName,
+        '',
+        nowTime,
+        nowTime
+      ]);
+      addedCount++;
+    }
   });
-  invalidateChildrenCache();
+  
+  if (addedCount > 0) {
+    invalidateChildrenCache();
+  }
   return true;
+}
+
+/**
+ * Clear all child profiles for a user (helper for testing)
+ * @param {string} userId
+ * @param {string} [userName]
+ * @param {string} [userNickname]
+ * @returns {boolean}
+ */
+function clearChildren(userId, userName, userNickname) {
+  if (!userId) return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    var lenBefore = _mockStore.Children.length;
+    _mockStore.Children = _mockStore.Children.filter(function (c) {
+      return c.userId !== userId && c.userId !== effUserId;
+    });
+    return _mockStore.Children.length < lenBefore;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) return false;
+
+  var rows = sheet.getDataRange().getValues();
+  var deleted = false;
+  for (var r = rows.length - 1; r >= 1; r--) {
+    var rUid = String(rows[r][0]).trim();
+    if (rUid === userId || rUid === effUserId) {
+      sheet.deleteRow(r + 1);
+      deleted = true;
+    }
+  }
+  if (deleted) invalidateChildrenCache();
+  return deleted;
 }
 
 /**
@@ -3542,6 +3604,7 @@ function addSpecialOrder(orderData) {
   g.getChildrenProfiles = getChildrenProfiles;
   g.saveChild = saveChild;
   g.setChildren = setChildren;
+  g.clearChildren = clearChildren;
   g.deleteChild = deleteChild;
   g._sanitizeSheetCell = _sanitizeSheetCell;
   g.hashUserId = hashUserId;
@@ -3607,6 +3670,7 @@ function addSpecialOrder(orderData) {
       getChildrenProfiles: getChildrenProfiles,
       saveChild: saveChild,
       setChildren: setChildren,
+      clearChildren: clearChildren,
       deleteChild: deleteChild,
       _sanitizeSheetCell: _sanitizeSheetCell,
       hashUserId: hashUserId,

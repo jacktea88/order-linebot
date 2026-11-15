@@ -1506,17 +1506,19 @@ const kidsFlexJson = JSON.stringify(lastReply.flex);
 assert.ok(kidsFlexJson.includes('大寶'), 'Kids flex card must include 大寶');
 assert.ok(kidsFlexJson.includes('二寶'), 'Kids flex card must include 二寶');
 
-// Test set children command
+// Test set children command (now adds children instead of replacing)
+SheetModule.clearChildren('user_alice');
 OrderModule.handleTextMessage({
   replyToken: 'token_kids_set',
   source: { groupId: groupId, userId: 'user_alice' },
   message: { type: 'text', text: '設定小孩 寶一, 寶二' }
 });
 assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('成功設定道親名冊'));
+assert.ok(lastReply.text.includes('成功新增道親名冊'));
 assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['寶一', '寶二']);
 
 // Reset Alice kids back to 大寶, 二寶
+SheetModule.clearChildren('user_alice');
 SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
 
 // Test parameter-less fallback checks and children submenu commands
@@ -1586,6 +1588,7 @@ assert.ok(lastReply.text.includes('已成功移除道親「大寶」'));
 assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['二寶']);
 
 // Restore Alice's children back to ['大寶', '二寶'] for downstream tests
+SheetModule.clearChildren('user_alice');
 SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
 
 console.log('  ✔ Children tab CRUD API, flex card, delete shortcuts, and management commands verified.');

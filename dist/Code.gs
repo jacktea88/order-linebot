@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-11-14T21:11:26+08:00
+ * Automatically generated on: 2026-11-15T15:56:40+08:00
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -6364,18 +6364,26 @@ function setChildren(userId, userName, userNickname, childNames) {
 
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
-    _mockStore.Children = _mockStore.Children.filter(function (c) { return c.userId !== userId && c.userId !== effUserId; });
+    
+    // Get existing children for this user
+    var existingNames = _mockStore.Children
+      .filter(function (c) { return c.userId === userId || c.userId === effUserId; })
+      .map(function (c) { return c.childName; });
+    
+    // Only add new names that don't already exist
     var nowStr = new Date().toISOString();
     names.forEach(function (n) {
-      _mockStore.Children.push({
-        userId: effUserId,
-        userName: _sanitizeSheetCell(userName || ''),
-        userNickname: _sanitizeSheetCell(userNickname || userName || ''),
-        childName: _sanitizeSheetCell(n),
-        note: '',
-        createdAt: nowStr,
-        updatedAt: nowStr
-      });
+      if (existingNames.indexOf(_sanitizeSheetCell(n)) === -1) {
+        _mockStore.Children.push({
+          userId: effUserId,
+          userName: _sanitizeSheetCell(userName || ''),
+          userNickname: _sanitizeSheetCell(userNickname || userName || ''),
+          childName: _sanitizeSheetCell(n),
+          note: '',
+          createdAt: nowStr,
+          updatedAt: nowStr
+        });
+      }
     });
     return true;
   }
@@ -6390,27 +6398,81 @@ function setChildren(userId, userName, userNickname, childNames) {
   }
 
   var rows = sheet.getDataRange().getValues();
-  for (var r = rows.length - 1; r >= 1; r--) {
+  
+  // Collect existing child names for this user
+  var existingNames = [];
+  for (var r = 1; r < rows.length; r++) {
     var rUid = String(rows[r][0]).trim();
     if (rUid === userId || rUid === effUserId) {
-      sheet.deleteRow(r + 1);
+      var childName = String(rows[r][3]).trim();
+      if (childName) {
+        existingNames.push(childName);
+      }
     }
   }
 
   var nowTime = new Date().toISOString();
+  var addedCount = 0;
+  
+  // Only add names that don't already exist
   names.forEach(function (n) {
-    sheet.appendRow([
-      effUserId,
-      _sanitizeSheetCell(userName || ''),
-      _sanitizeSheetCell(userNickname || userName || ''),
-      _sanitizeSheetCell(n),
-      '',
-      nowTime,
-      nowTime
-    ]);
+    var sanitizedName = _sanitizeSheetCell(n);
+    if (existingNames.indexOf(sanitizedName) === -1) {
+      sheet.appendRow([
+        effUserId,
+        _sanitizeSheetCell(userName || ''),
+        _sanitizeSheetCell(userNickname || userName || ''),
+        sanitizedName,
+        '',
+        nowTime,
+        nowTime
+      ]);
+      addedCount++;
+    }
   });
-  invalidateChildrenCache();
+  
+  if (addedCount > 0) {
+    invalidateChildrenCache();
+  }
   return true;
+}
+
+/**
+ * Clear all child profiles for a user (helper for testing)
+ * @param {string} userId
+ * @param {string} [userName]
+ * @param {string} [userNickname]
+ * @returns {boolean}
+ */
+function clearChildren(userId, userName, userNickname) {
+  if (!userId) return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    var lenBefore = _mockStore.Children.length;
+    _mockStore.Children = _mockStore.Children.filter(function (c) {
+      return c.userId !== userId && c.userId !== effUserId;
+    });
+    return _mockStore.Children.length < lenBefore;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) return false;
+
+  var rows = sheet.getDataRange().getValues();
+  var deleted = false;
+  for (var r = rows.length - 1; r >= 1; r--) {
+    var rUid = String(rows[r][0]).trim();
+    if (rUid === userId || rUid === effUserId) {
+      sheet.deleteRow(r + 1);
+      deleted = true;
+    }
+  }
+  if (deleted) invalidateChildrenCache();
+  return deleted;
 }
 
 /**
@@ -6932,6 +6994,7 @@ function addSpecialOrder(orderData) {
   g.getChildrenProfiles = getChildrenProfiles;
   g.saveChild = saveChild;
   g.setChildren = setChildren;
+  g.clearChildren = clearChildren;
   g.deleteChild = deleteChild;
   g._sanitizeSheetCell = _sanitizeSheetCell;
   g.hashUserId = hashUserId;
@@ -6997,6 +7060,7 @@ function addSpecialOrder(orderData) {
       getChildrenProfiles: getChildrenProfiles,
       saveChild: saveChild,
       setChildren: setChildren,
+      clearChildren: clearChildren,
       deleteChild: deleteChild,
       _sanitizeSheetCell: _sanitizeSheetCell,
       hashUserId: hashUserId,
@@ -11609,6 +11673,9 @@ var SpecialModule = null;
 
 var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6, '週日': 7 };
 
+// 支援的道親名單分隔符號正則表達式：半型逗號、全型逗號、頓號、全型分號、中點、全型斜線、空白等
+var CHILD_NAME_SEPARATOR = /[,、，；·／\s]+/;
+
 /**
  * Check if weekend ordering (Saturday & Sunday) is enabled
  * @returns {boolean}
@@ -12112,7 +12179,7 @@ function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
 
   // If explicitChild has multiple children separated by comma or 頓號: "大寶, 二寶"
   if (explicitChild) {
-    var splitKids = explicitChild.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+    var splitKids = explicitChild.split(CHILD_NAME_SEPARATOR).filter(function (k) { return k && k.trim(); });
     if (splitKids.length > 1) {
       splitKids.forEach(function (kid) {
         list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
@@ -12129,7 +12196,7 @@ function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
     cleanItem = bracketMatch[1].trim();
     var innerText = bracketMatch[2].trim();
     if (innerText) {
-      var multiKids = innerText.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+      var multiKids = innerText.split(CHILD_NAME_SEPARATOR).filter(function (k) { return k && k.trim(); });
       if (multiKids.length > 1) {
         multiKids.forEach(function (kid) {
           list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
@@ -12998,14 +13065,14 @@ function handleTextMessage(event) {
   var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
-    var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
+    var kidList = rawList.split(CHILD_NAME_SEPARATOR).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
     if (kidList.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的道親姓名，例如：「設定道親 大寶, 二寶」');
     }
     if (SheetModule.setChildren) {
       SheetModule.setChildren(userId, userDisplayName, userDisplayName, kidList);
     }
-    return LineModule.replyText(replyToken, '✅ 已為您成功設定道親名冊：' + kidList.join('、') + '！\n💡 下次登記點擊工作上的「+1 登記」按鈕，系統將會自動浮出道親捷徑讓您一秒直選！');
+    return LineModule.replyText(replyToken, '✅ 已為您成功新增道親名冊：' + kidList.join('、') + '！\n💡 您也可以繼續新增更多道親，或點擊工作上的「+1 登記」按鈕快速選擇要登記的道親！');
   }
 
   // 8.5.1c STANDALONE ADD KID: 新增小孩 / 加小孩 (無參數時提示引導與快捷按鈕)

@@ -66,6 +66,9 @@ var SpecialModule = null;
 
 var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6, '週日': 7 };
 
+// 支援的道親名單分隔符號正則表達式：半型逗號、全型逗號、頓號、全型分號、中點、全型斜線、空白等
+var CHILD_NAME_SEPARATOR = /[,、，；·／﹐﹑\s]+/;
+
 /**
  * Check if weekend ordering (Saturday & Sunday) is enabled
  * @returns {boolean}
@@ -556,7 +559,15 @@ function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
  */
 function _protectBrackets(str) {
   return str.replace(/([(（\[【][^)）\]】]*[)）\]】])/g, function (match) {
-    return match.replace(/,/g, '___COMMA___').replace(/，/g, '___COMMA___');
+    return match
+      .replace(/,/g, '___COMMA___')
+      .replace(/，/g, '___COMMA___')
+      .replace(/、/g, '___COMMA___')
+      .replace(/；/g, '___COMMA___')
+      .replace(/·/g, '___COMMA___')
+      .replace(/／/g, '___COMMA___')
+      .replace(/﹐/g, '___COMMA___')
+      .replace(/﹑/g, '___COMMA___');
   });
 }
 function _restoreBrackets(str) {
@@ -569,7 +580,7 @@ function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
 
   // If explicitChild has multiple children separated by comma or 頓號: "大寶, 二寶"
   if (explicitChild) {
-    var splitKids = explicitChild.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+    var splitKids = explicitChild.split(CHILD_NAME_SEPARATOR).filter(function (k) { return k && k.trim(); });
     if (splitKids.length > 1) {
       splitKids.forEach(function (kid) {
         list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
@@ -586,7 +597,7 @@ function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
     cleanItem = bracketMatch[1].trim();
     var innerText = bracketMatch[2].trim();
     if (innerText) {
-      var multiKids = innerText.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+      var multiKids = innerText.split(CHILD_NAME_SEPARATOR).filter(function (k) { return k && k.trim(); });
       if (multiKids.length > 1) {
         multiKids.forEach(function (kid) {
           list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
@@ -651,7 +662,7 @@ function isMenuPageCommand(text) {
 function parseOrderText(text) {
   if (!text || isAnnouncementOrReconciliation(text) || isMenuPageCommand(text)) return [];
   var protectedText = _protectBrackets(text);
-  var clean = protectedText.replace(/，|；/g, ',');
+  var clean = protectedText.replace(/，|；|、|·|／|﹐|﹑/g, ',');
   var lines = clean.split(/[\n,]+/);
   var parsedItems = [];
 
@@ -1455,14 +1466,14 @@ function handleTextMessage(event) {
   var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
-    var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
+    var kidList = rawList.split(CHILD_NAME_SEPARATOR).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
     if (kidList.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的道親姓名，例如：「設定道親 大寶, 二寶」');
     }
     if (SheetModule.setChildren) {
       SheetModule.setChildren(userId, userDisplayName, userDisplayName, kidList);
     }
-    return LineModule.replyText(replyToken, '✅ 已為您成功設定道親名冊：' + kidList.join('、') + '！\n💡 下次登記點擊工作上的「+1 登記」按鈕，系統將會自動浮出道親捷徑讓您一秒直選！');
+    return LineModule.replyText(replyToken, '✅ 已為您成功新增道親名冊：' + kidList.join('、') + '！\n💡 您也可以繼續新增更多道親，或點擊工作上的「+1 登記」按鈕快速選擇要登記的道親！');
   }
 
   // 8.5.1c STANDALONE ADD KID: 新增小孩 / 加小孩 (無參數時提示引導與快捷按鈕)
